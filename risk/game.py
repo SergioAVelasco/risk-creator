@@ -13,6 +13,7 @@ from .errors import RuleError
 from .gamemap import GameMap
 
 STARTING_ARMIES = {2: 40, 3: 35, 4: 30, 5: 25, 6: 20}
+NEUTRAL = "neutral"  # id del ejército fantasma de las partidas de 2 jugadores
 MUST_TRADE_AT = 5  # holding this many cards forces a trade at reinforcement
 
 
@@ -25,7 +26,11 @@ class Game:
         if len(gamemap.territories) < len(players):
             raise RuleError("map has fewer territories than players")
         self.map = gamemap
-        self.players = list(players)
+        self.players = list(players)  # solo quienes juegan turnos
+        # Con 2 jugadores entra un tercer bando neutral (regla oficial): ocupa
+        # territorios y defiende con dados, pero nunca juega turno, no refuerza
+        # y no roba cartas. Por eso NO está en self.players ni en self.cards.
+        self.neutral: str | None = NEUTRAL if len(players) == 2 else None
         self.rng = rng or random.Random()
 
         self.owner: dict[str, str] = {}
@@ -52,12 +57,20 @@ class Game:
     def _deal(self) -> None:
         ids = list(self.map.territories)
         self.rng.shuffle(ids)
+        # El reparto incluye al neutral como un bando más (14 territorios c/u).
+        sides = self.players + ([self.neutral] if self.neutral else [])
         for i, t in enumerate(ids):
-            self.owner[t] = self.players[i % len(self.players)]
+            self.owner[t] = sides[i % len(sides)]
             self.armies[t] = 1
         start = STARTING_ARMIES.get(len(self.players), 20)
         for p in self.players:
             self.setup_left[p] = start - len(self.territories_of(p))
+        if self.neutral:
+            # El neutral recibe el mismo total que un jugador, ya colocado de
+            # forma aleatoria entre sus territorios (nadie lo coloca por turnos).
+            mine = self.territories_of(self.neutral)
+            for _ in range(start - len(mine)):
+                self.armies[self.rng.choice(mine)] += 1
         self.deck = build_deck(list(self.map.territories))
         self.rng.shuffle(self.deck)
         self.current = self.players[-1]  # so the first placement goes to players[0]
@@ -221,9 +234,12 @@ class Game:
             "from": source, "to": target, "min": min(dice, max_move), "max": max_move,
         }
         if not self.territories_of(defender):
-            self.eliminated.append(defender)
-            self.cards[player].extend(self.cards[defender])
-            self.cards[defender] = []
+            # El neutral puede quedarse sin territorios, pero no tiene cartas
+            # que heredar ni cuenta como jugador eliminado.
+            if defender != self.neutral:
+                self.eliminated.append(defender)
+                self.cards[player].extend(self.cards[defender])
+                self.cards[defender] = []
             result["eliminated"] = defender
         if len(self.territories_of(player)) == len(self.map.territories):
             self.winner = player
@@ -333,6 +349,7 @@ class Game:
         return {
             "map": self.map.name,
             "players": self.players,
+            "neutral": self.neutral,
             "eliminated": self.eliminated,
             "winner": self.winner,
             "phase": self.phase,

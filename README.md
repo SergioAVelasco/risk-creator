@@ -10,7 +10,9 @@ python3 -m uvicorn server.app:app --host 0.0.0.0 --port 8000
 ```
 
 Abre `http://localhost:8000`, crea una sala y comparte el enlace (o el código de 4
-letras). Cada jugador entra desde su navegador; 2 a 6 jugadores. En red local, usa la
+letras). Cada jugador entra desde su navegador; 2 a 6 jugadores. Con 2 jugadores entra un bando
+neutral (regla oficial): 14 territorios y 40 ejércitos repartidos al azar; defiende con
+dados pero no juega turnos ni roba cartas. En red local, usa la
 IP de la máquina en vez de `localhost`.
 
 ## Estructura

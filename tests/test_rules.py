@@ -71,7 +71,8 @@ class SetupTests(unittest.TestCase):
             g = new_game(n)
             total = {p: 0 for p in g.players}
             for t, o in g.owner.items():
-                total[o] += g.armies[t]
+                if o in total:  # ignora al neutral
+                    total[o] += g.armies[t]
             for p in g.players:
                 self.assertEqual(total[p] + g.setup_left[p], armies)
 
@@ -79,6 +80,37 @@ class SetupTests(unittest.TestCase):
         g = new_game(4)
         counts = sorted(len(g.territories_of(p)) for p in g.players)
         self.assertLessEqual(counts[-1] - counts[0], 1)
+
+    def test_two_players_get_a_neutral_side(self):
+        g = new_game(2)
+        self.assertEqual(g.neutral, "neutral")
+        self.assertNotIn("neutral", g.players)
+        for side in ("p0", "p1", "neutral"):
+            self.assertEqual(len(g.territories_of(side)), 14)
+        # el neutral tiene el mismo total de ejércitos que un jugador
+        total = sum(g.armies[t] for t in g.territories_of("neutral"))
+        self.assertEqual(total, 40)
+        self.assertNotIn("neutral", g.setup_left)
+        self.assertIsNone(new_game(3).neutral)
+
+    def test_neutral_never_gets_a_turn(self):
+        g = new_game(2)
+        for _ in range(6):
+            while g.phase == "setup":
+                g.place(g.current, g.territories_of(g.current)[0])
+            self.assertIn(g.current, ("p0", "p1"))
+            g.reinforcements = 0
+            g.phase = "fortify"
+            g.end_turn(g.current)
+
+    def test_conquering_all_neutral_territories_keeps_game_going(self):
+        g = new_game(2)
+        to_attack_phase(g)
+        me = g.current
+        for t in g.territories_of("neutral"):
+            g.owner[t] = me
+        self.assertEqual(g.eliminated, [])
+        self.assertIsNone(g.winner)
 
     def test_setup_round_robin_then_play(self):
         g = new_game(3)

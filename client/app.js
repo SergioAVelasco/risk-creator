@@ -100,8 +100,9 @@ function renderLobby() {
     ? "Se necesitan al menos 2 jugadores." : (isHost ? "Todo listo." : "Esperando al anfitrión…");
 }
 
-const colorOf = (pid) => lobby.members.find(m => m.pid === pid).color;
-const nameOf = (pid) => lobby.members.find(m => m.pid === pid).name;
+const NEUTRAL_COLOR = "#7a7f87";
+const colorOf = (pid) => pid === "neutral" ? NEUTRAL_COLOR : lobby.members.find(m => m.pid === pid).color;
+const nameOf = (pid) => pid === "neutral" ? "Neutral" : lobby.members.find(m => m.pid === pid).name;
 
 function buildMap() {
   const svg = $("mapWrap").querySelector("svg");
@@ -185,12 +186,12 @@ function showAttackControls(from, to) {
 
 function renderSide() {
   // players
-  $("players").innerHTML = game.players.map(p => {
+  $("players").innerHTML = game.players.concat(game.neutral ? [game.neutral] : []).map(p => {
     const terr = Object.values(game.owner).filter(o => o === p).length;
     const arm = Object.entries(game.owner).filter(([, o]) => o === p).reduce((s, [t]) => s + game.armies[t], 0);
     const cls = ["player", p === game.current && game.phase !== "finished" ? "current" : "", game.eliminated.includes(p) ? "out" : ""].join(" ");
     return `<div class="${cls}"><span class="dot" style="background:${colorOf(p)}"></span>${esc(nameOf(p))}${p === me ? " (tú)" : ""}
-      <span class="nums">${terr}T · ${arm}⚔ · ${game.card_counts[p]}🂠</span></div>`;
+      <span class="nums">${terr}T · ${arm}⚔${p in game.card_counts ? ` · ${game.card_counts[p]}🂠` : ""}</span></div>`;
   }).join("");
 
   // phase
