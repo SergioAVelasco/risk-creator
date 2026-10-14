@@ -142,32 +142,32 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(g.setup_round, 1)
         for p in g.players:
             self.assertEqual(g.setup_quota[p], 10)
-        # cualquiera puede colocar, en cualquier orden
-        for p in reversed(g.players):
+        # cualquiera puede colocar, en cualquier orden; no hay que confirmar
+        for p in reversed(g.players[1:]):
             g.place(p, g.territories_of(p)[0], 10)
-        # nadie confirmó: sigue la ronda 1
-        self.assertEqual(g.setup_round, 1)
-        for p in g.players[:-1]:
-            g.confirm_setup(p)
-        self.assertEqual(g.setup_round, 1)   # falta uno
-        g.confirm_setup(g.players[-1])
-        self.assertEqual(g.setup_round, 2)   # se desbloquean otros 10
+            self.assertTrue(g.setup_ready[p])      # queda en espera solo
+        self.assertEqual(g.setup_round, 1)         # falta p0
+        g.place("p0", g.territories_of("p0")[0], 10)
+        self.assertEqual(g.setup_round, 2)         # se desbloquean otros 10
         self.assertEqual(g.setup_quota["p0"], 10)
+        self.assertFalse(g.setup_ready["p0"])
 
-    def test_simultaneous_setup_requires_full_quota_and_allows_undo(self):
+    def test_simultaneous_setup_quota_undo_and_wait(self):
         g = self.sim_game(3, batch=10)
         p = "p0"
         t = g.territories_of(p)[0]
         g.place(p, t, 4)
-        with self.assertRaises(RuleError):
-            g.confirm_setup(p)
+        self.assertFalse(g.setup_ready[p])
         with self.assertRaises(RuleError):
             g.place(p, t, 7)             # se pasa de la cuota
         g.undo_setup(p)
+        self.assertEqual(g.to_dict(p)["setup_placed"], 0)
         g.place(p, t, 10)
-        g.confirm_setup(p)
+        self.assertTrue(g.setup_ready[p])
         with self.assertRaises(RuleError):
-            g.place(p, t, 1)             # ya confirmó la ronda
+            g.place(p, t, 1)             # ya completó la ronda: espera
+        with self.assertRaises(RuleError):
+            g.undo_setup(p)
         self.assertEqual(g.armies[t], 1)  # aún no se aplica: faltan los demás
 
     def test_simultaneous_setup_hides_other_players_placements(self):
@@ -185,8 +185,6 @@ class SetupTests(unittest.TestCase):
         while g.phase == "setup":
             for p in g.players:
                 g.place(p, g.territories_of(p)[0], g.setup_quota[p])
-            for p in g.players:
-                g.confirm_setup(p)
         self.assertEqual(g.phase, "reinforce")
         self.assertEqual(g.current, "p0")
         t0 = g.territories_of("p1")[0]

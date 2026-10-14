@@ -58,14 +58,6 @@ class ServerTests(unittest.TestCase):
             self.assertEqual(g["cards"], [])
             mine = [t for t, o in g["owner"].items() if o == "p1"][0]
 
-            # confirming before placing the whole quota is an error
-            a.send_json({"type": "setup_confirm"})
-            while True:
-                m = a.receive_json()
-                if m["type"] == "error":
-                    break
-            self.assertIn("place all", m["message"])
-
             # simultaneous: p1 places privately without waiting for anyone's turn
             a.send_json({"type": "place", "territory": mine, "count": 5})
             while True:

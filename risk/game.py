@@ -124,20 +124,20 @@ class Game:
         if player not in self.players:
             raise RuleError("unknown player")
         if self.setup_ready[player]:
-            raise RuleError("you already confirmed this round; wait for the others")
+            raise RuleError("you already placed this round's armies; wait for the others")
 
     def undo_setup(self, player: str) -> None:
-        """Retira lo colocado esta ronda (antes de confirmar)."""
+        """Retira lo colocado esta ronda (solo posible antes de completar la cuota)."""
         self._require_setup_open(player)
         self.setup_pending[player] = {}
 
-    def confirm_setup(self, player: str) -> None:
-        """Confirma la ronda; cuando todos confirman se aplican y se abre la siguiente."""
-        self._require_setup_open(player)
-        placed = sum(self.setup_pending[player].values())
-        if placed != self.setup_quota[player]:
-            raise RuleError(f"place all {self.setup_quota[player]} armies before confirming "
-                            f"({placed} placed)")
+    def _complete_setup_round_for(self, player: str) -> None:
+        """Se llama solo cuando el jugador colocó toda su cuota: queda en espera.
+
+        No hay botón de confirmar: al colocar el último ejército de la cuota el
+        jugador pasa a "listo". Cuando todos están listos se aplican las
+        colocaciones y se abre la siguiente ronda.
+        """
         self.setup_ready[player] = True
         if all(self.setup_ready.values()):
             for p in self.players:
@@ -208,6 +208,8 @@ class Game:
                 raise RuleError(f"you can place {left} more armies this round")
             pend = self.setup_pending[player]
             pend[territory] = pend.get(territory, 0) + count
+            if sum(pend.values()) == self.setup_quota[player]:
+                self._complete_setup_round_for(player)
             return
         self._require_turn(player, "setup", "reinforce", "attack")
         self._require_own(player, territory)

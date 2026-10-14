@@ -16,7 +16,8 @@ dados pero no juega turnos ni roba cartas.
 
 La preparación es **simultánea y oculta**: todos colocan a la vez, por rondas (el
 anfitrión elige el tamaño: 5, 10 por defecto, 20 o todo de una vez). Nadie ve lo que
-colocan los demás hasta que termina la fase; cada ronda se abre cuando todos confirman. En red local, usa la
+colocan los demás hasta que termina la fase; al colocar tu cuota quedas en espera y la
+siguiente ronda se abre cuando todos terminaron. En red local, usa la
 IP de la máquina en vez de `localhost`.
 
 ## Estructura

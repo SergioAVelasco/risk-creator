@@ -217,12 +217,10 @@ function renderSide() {
     const quota = game.setup_quota[me], placed = game.setup_placed;
     if (mine) {
       help = `Coloca ${quota} ejércitos en secreto: ${placed}/${quota}. Los demás no ven lo que pones hasta el final de la preparación (te quedan ${game.setup_left[me]} en total).`;
-      c.innerHTML = `<button id="suUndo" class="ghost" ${placed ? "" : "disabled"}>Deshacer</button>
-        <button id="suOk" ${placed === quota ? "" : "disabled"}>Confirmar ronda</button>`;
+      c.innerHTML = `<button id="suUndo" class="ghost" ${placed ? "" : "disabled"}>Deshacer</button>`;
       $("suUndo").onclick = () => send({ type: "setup_undo" });
-      $("suOk").onclick = () => send({ type: "setup_confirm" });
     } else {
-      help = "Confirmado. Esperando a los demás jugadores…";
+      help = "Ya colocaste esta ronda. Esperando a que los demás terminen…";
     }
   } else if (ph === "setup") {
     help = mine

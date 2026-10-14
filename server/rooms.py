@@ -111,8 +111,6 @@ class Room:
         i = lambda k: int(msg.get(k, 0))  # noqa: E731
         if t == "place":
             g.place(pid, msg["territory"], i("count") or 1)
-        elif t == "setup_confirm":
-            g.confirm_setup(pid)
         elif t == "setup_undo":
             g.undo_setup(pid)
         elif t == "trade":
