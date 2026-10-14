@@ -69,6 +69,14 @@ class ServerTests(unittest.TestCase):
                     break
             self.assertIn("turn", m["message"])
 
+    def test_creator_can_choose_the_room_code(self):
+        r = self.client.post("/api/rooms", json={"map": "classic", "code": "ab12"})
+        self.assertEqual(r.json()["code"], "AB12")
+        dup = self.client.post("/api/rooms", json={"map": "classic", "code": "AB12"})
+        self.assertEqual(dup.status_code, 400)
+        bad = self.client.post("/api/rooms", json={"map": "classic", "code": "xy"})
+        self.assertEqual(bad.status_code, 400)
+
     def test_unknown_room_is_fatal(self):
         with self.client.websocket_connect("/ws/ZZZZ?name=X") as ws:
             self.assertEqual(ws.receive_json()["type"], "fatal")

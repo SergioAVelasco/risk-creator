@@ -144,13 +144,21 @@ class Rooms:
     def __init__(self) -> None:
         self.rooms: dict[str, Room] = {}
 
-    def create(self, map_id: str) -> Room:
+    def create(self, map_id: str, code: str | None = None) -> Room:
         if map_id not in {m["id"] for m in list_maps()}:
             raise RuleError("unknown map")
-        while True:
-            code = "".join(random.choices(string.ascii_uppercase, k=4))
-            if code not in self.rooms:
-                break
+        code = (code or "").strip().upper()
+        if code:
+            # Código elegido por el creador: se conserva tal cual si es válido.
+            if len(code) != 4 or not all(c in string.ascii_uppercase + string.digits for c in code):
+                raise RuleError("the code must be 4 letters or digits")
+            if code in self.rooms:
+                raise RuleError("that code is already in use")
+        else:
+            while True:
+                code = "".join(random.choices(string.ascii_uppercase, k=4))
+                if code not in self.rooms:
+                    break
         room = self.rooms[code] = Room(code, map_id)
         return room
 

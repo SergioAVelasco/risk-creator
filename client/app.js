@@ -30,7 +30,8 @@ function landingError(msg) { $("landingError").textContent = msg || ""; }
 async function createRoom() {
   const r = await fetch("/api/rooms", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ map: $("mapSelect").value }),
+    // Si el creador escribió un código, la sala se crea con ese mismo código.
+    body: JSON.stringify({ map: $("mapSelect").value, code: $("codeInput").value.trim() || null }),
   });
   if (!r.ok) return landingError((await r.json()).detail);
   join((await r.json()).code);

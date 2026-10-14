@@ -24,6 +24,7 @@ sockets: dict[str, dict[str, WebSocket]] = {}  # room code -> pid -> ws
 
 class CreateRoom(BaseModel):
     map: str = "classic"
+    code: str | None = None  # código elegido por el creador (opcional)
 
 
 @app.get("/api/maps")
@@ -34,7 +35,7 @@ def api_maps():
 @app.post("/api/rooms")
 def api_create_room(body: CreateRoom):
     try:
-        room = rooms.create(body.map)
+        room = rooms.create(body.map, body.code)
     except RuleError as e:
         raise HTTPException(400, str(e))
     return {"code": room.code}
