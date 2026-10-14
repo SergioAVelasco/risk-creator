@@ -55,8 +55,17 @@ class Room:
             for m in self.members.values():
                 if m.token == token:
                     return m
+        # Sin token válido (otro navegador, datos borrados…): se puede recuperar
+        # el asiento de un jugador DESCONECTADO usando el mismo nombre con el
+        # que entró. El asiento conserva su token, que el cliente guardará.
+        wanted = (name or "").strip()[:20].lower()
+        if wanted:
+            for m in self.members.values():
+                if not m.connected and m.name.lower() == wanted:
+                    return m
         if self.game is not None:
-            raise RuleError("the game already started")
+            raise RuleError("the game already started; to rejoin use the same name "
+                            "you had (and only while that player is disconnected)")
         if len(self.members) >= MAX_PLAYERS:
             raise RuleError("the room is full")
         name = (name or "Player").strip()[:20] or "Player"

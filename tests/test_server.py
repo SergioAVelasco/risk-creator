@@ -77,6 +77,23 @@ class ServerTests(unittest.TestCase):
         bad = self.client.post("/api/rooms", json={"map": "classic", "code": "xy"})
         self.assertEqual(bad.status_code, 400)
 
+    def test_rejoin_by_name_after_disconnect(self):
+        code = self.client.post("/api/rooms", json={"map": "classic"}).json()["code"]
+        with self.client.websocket_connect(f"/ws/{code}?name=Ana") as a:
+            a.receive_json()
+            with self.client.websocket_connect(f"/ws/{code}?name=Beto") as b:
+                token = b.receive_json()["token"]
+                a.send_json({"type": "start"})
+            # Beto se desconectó; vuelve sin token (otro navegador) con su nombre
+            with self.client.websocket_connect(f"/ws/{code}?name=beto") as b2:
+                w = b2.receive_json()
+                self.assertEqual(w["type"], "welcome")
+                self.assertEqual(w["pid"], "p2")
+                self.assertEqual(w["token"], token)
+            # un nombre desconocido no puede entrar a una partida ya iniciada
+            with self.client.websocket_connect(f"/ws/{code}?name=Intruso") as x:
+                self.assertEqual(x.receive_json()["type"], "fatal")
+
     def test_unknown_room_is_fatal(self):
         with self.client.websocket_connect("/ws/ZZZZ?name=X") as ws:
             self.assertEqual(ws.receive_json()["type"], "fatal")
