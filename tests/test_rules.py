@@ -170,6 +170,24 @@ class SetupTests(unittest.TestCase):
             g.undo_setup(p)
         self.assertEqual(g.armies[t], 1)  # aún no se aplica: faltan los demás
 
+    def test_neutral_places_its_armies_round_by_round(self):
+        g = self.sim_game(2, batch=10)
+        neutral = g.territories_of("neutral")
+        total = lambda: sum(g.armies[t] for t in neutral)  # noqa: E731
+        self.assertEqual(total(), 14 + 10)   # base + cuota de la ronda 1
+        for expected in (14 + 20, 40):        # rondas 2 y 3 (26 = 10 + 10 + 6)
+            for p in g.players:
+                g.place(p, g.territories_of(p)[0], g.setup_quota[p])
+            self.assertEqual(total(), expected)
+        for p in g.players:
+            g.place(p, g.territories_of(p)[0], g.setup_quota[p])
+        self.assertEqual(g.phase, "reinforce")
+        self.assertEqual(total(), 40)
+        # y es visible para todos durante la preparación
+        g2 = self.sim_game(2, batch=10)
+        t = g2.territories_of("neutral")[0]
+        self.assertEqual(g2.to_dict("p0")["armies"][t], g2.armies[t])
+
     def test_simultaneous_setup_hides_other_players_placements(self):
         g = self.sim_game(3, batch=10)
         t0 = g.territories_of("p0")[0]

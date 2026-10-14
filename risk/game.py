@@ -80,12 +80,14 @@ class Game:
         start = STARTING_ARMIES.get(len(self.players), 20)
         for p in self.players:
             self.setup_left[p] = start - len(self.territories_of(p))
+        self.neutral_left = 0
         if self.neutral:
-            # El neutral recibe el mismo total que un jugador, ya colocado de
-            # forma aleatoria entre sus territorios (nadie lo coloca por turnos).
+            # El neutral recibe el mismo total que un jugador, colocado al azar
+            # entre sus territorios (nadie lo coloca por turnos).
             mine = self.territories_of(self.neutral)
-            for _ in range(start - len(mine)):
-                self.armies[self.rng.choice(mine)] += 1
+            self.neutral_left = max(0, start - len(mine))
+            if not self.simultaneous_setup:
+                self._neutral_place(self.neutral_left)
         self.deck = build_deck(list(self.map.territories))
         self.rng.shuffle(self.deck)
         if self.simultaneous_setup:
@@ -96,12 +98,26 @@ class Game:
         self._advance_setup()
 
     # -- preparación simultánea
+    def _neutral_place(self, n: int) -> None:
+        """El neutral coloca `n` ejércitos en territorios suyos elegidos al azar."""
+        mine = self.territories_of(self.neutral)
+        n = min(n, self.neutral_left)
+        for _ in range(n):
+            self.armies[self.rng.choice(mine)] += 1
+        self.neutral_left -= n
+
     def _begin_setup_round(self) -> None:
         """Abre una ronda: cada jugador recibe su cuota, o termina la fase."""
         if not any(v > 0 for v in self.setup_left.values()):
+            if self.neutral:
+                self._neutral_place(self.neutral_left)  # por si quedó resto
             self._finish_setup()
             return
         self.setup_round += 1
+        if self.neutral:
+            # El neutral coloca su cuota de la ronda al azar y a la vista de
+            # todos, igual que los jugadores colocan la suya.
+            self._neutral_place(self.setup_batch)
         for p in self.players:
             q = max(0, min(self.setup_batch, self.setup_left[p]))
             self.setup_quota[p] = q
