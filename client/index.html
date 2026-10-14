@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Risk Creator</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<section id="landing">
+  <h1>Risk Creator</h1>
+  <p class="sub">Risk clásico con mapas personalizables</p>
+  <label>Tu nombre <input id="name" maxlength="20" placeholder="Nombre"></label>
+  <div class="row">
+    <label>Mapa <select id="mapSelect"></select></label>
+    <button id="createBtn">Crear sala</button>
+  </div>
+  <div class="row">
+    <label>Código de sala <input id="codeInput" maxlength="4" placeholder="ABCD" style="text-transform:uppercase"></label>
+    <button id="joinBtn">Unirse</button>
+  </div>
+  <p id="landingError" class="error"></p>
+</section>
+
+<section id="lobby" hidden>
+  <h2>Sala <span id="lobbyCode"></span></h2>
+  <p class="sub">Comparte este enlace: <input id="shareLink" readonly size="38"></p>
+  <ul id="lobbyMembers"></ul>
+  <button id="startBtn" hidden>Empezar partida</button>
+  <p id="lobbyHint" class="sub"></p>
+</section>
+
+<section id="game" hidden>
+  <div id="mapWrap"></div>
+  <aside>
+    <div id="players"></div>
+    <div id="phaseBox">
+      <div id="phaseTitle"></div>
+      <div id="phaseHelp"></div>
+      <div id="controls"></div>
+    </div>
+    <div id="cardsBox"></div>
+    <div id="lastAttack"></div>
+    <div id="logBox"></div>
+  </aside>
+</section>
+<div id="toast" hidden></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

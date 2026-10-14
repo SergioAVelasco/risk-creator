@@ -1,0 +1,450 @@
+{
+ "name": "Classic World",
+ "version": 1,
+ "continents": {
+  "north_america": {
+   "name": "North America",
+   "bonus": 5
+  },
+  "south_america": {
+   "name": "South America",
+   "bonus": 2
+  },
+  "europe": {
+   "name": "Europe",
+   "bonus": 5
+  },
+  "africa": {
+   "name": "Africa",
+   "bonus": 3
+  },
+  "asia": {
+   "name": "Asia",
+   "bonus": 7
+  },
+  "australia": {
+   "name": "Australia",
+   "bonus": 2
+  }
+ },
+ "territories": {
+  "alaska": {
+   "name": "Alaska",
+   "continent": "north_america",
+   "neighbors": [
+    "alberta",
+    "kamchatka",
+    "northwest_territory"
+   ]
+  },
+  "northwest_territory": {
+   "name": "Northwest Territory",
+   "continent": "north_america",
+   "neighbors": [
+    "alaska",
+    "alberta",
+    "greenland",
+    "ontario"
+   ]
+  },
+  "greenland": {
+   "name": "Greenland",
+   "continent": "north_america",
+   "neighbors": [
+    "iceland",
+    "northwest_territory",
+    "ontario",
+    "quebec"
+   ]
+  },
+  "alberta": {
+   "name": "Alberta",
+   "continent": "north_america",
+   "neighbors": [
+    "alaska",
+    "northwest_territory",
+    "ontario",
+    "western_united_states"
+   ]
+  },
+  "ontario": {
+   "name": "Ontario",
+   "continent": "north_america",
+   "neighbors": [
+    "alberta",
+    "eastern_united_states",
+    "greenland",
+    "northwest_territory",
+    "quebec",
+    "western_united_states"
+   ]
+  },
+  "quebec": {
+   "name": "Quebec",
+   "continent": "north_america",
+   "neighbors": [
+    "eastern_united_states",
+    "greenland",
+    "ontario"
+   ]
+  },
+  "western_united_states": {
+   "name": "Western United States",
+   "continent": "north_america",
+   "neighbors": [
+    "alberta",
+    "central_america",
+    "eastern_united_states",
+    "ontario"
+   ]
+  },
+  "eastern_united_states": {
+   "name": "Eastern United States",
+   "continent": "north_america",
+   "neighbors": [
+    "central_america",
+    "ontario",
+    "quebec",
+    "western_united_states"
+   ]
+  },
+  "central_america": {
+   "name": "Central America",
+   "continent": "north_america",
+   "neighbors": [
+    "eastern_united_states",
+    "venezuela",
+    "western_united_states"
+   ]
+  },
+  "venezuela": {
+   "name": "Venezuela",
+   "continent": "south_america",
+   "neighbors": [
+    "brazil",
+    "central_america",
+    "peru"
+   ]
+  },
+  "peru": {
+   "name": "Peru",
+   "continent": "south_america",
+   "neighbors": [
+    "argentina",
+    "brazil",
+    "venezuela"
+   ]
+  },
+  "brazil": {
+   "name": "Brazil",
+   "continent": "south_america",
+   "neighbors": [
+    "argentina",
+    "north_africa",
+    "peru",
+    "venezuela"
+   ]
+  },
+  "argentina": {
+   "name": "Argentina",
+   "continent": "south_america",
+   "neighbors": [
+    "brazil",
+    "peru"
+   ]
+  },
+  "iceland": {
+   "name": "Iceland",
+   "continent": "europe",
+   "neighbors": [
+    "great_britain",
+    "greenland",
+    "scandinavia"
+   ]
+  },
+  "great_britain": {
+   "name": "Great Britain",
+   "continent": "europe",
+   "neighbors": [
+    "iceland",
+    "northern_europe",
+    "scandinavia",
+    "western_europe"
+   ]
+  },
+  "scandinavia": {
+   "name": "Scandinavia",
+   "continent": "europe",
+   "neighbors": [
+    "great_britain",
+    "iceland",
+    "northern_europe",
+    "ukraine"
+   ]
+  },
+  "ukraine": {
+   "name": "Ukraine",
+   "continent": "europe",
+   "neighbors": [
+    "afghanistan",
+    "middle_east",
+    "northern_europe",
+    "scandinavia",
+    "southern_europe",
+    "ural"
+   ]
+  },
+  "northern_europe": {
+   "name": "Northern Europe",
+   "continent": "europe",
+   "neighbors": [
+    "great_britain",
+    "scandinavia",
+    "southern_europe",
+    "ukraine",
+    "western_europe"
+   ]
+  },
+  "southern_europe": {
+   "name": "Southern Europe",
+   "continent": "europe",
+   "neighbors": [
+    "egypt",
+    "middle_east",
+    "north_africa",
+    "northern_europe",
+    "ukraine",
+    "western_europe"
+   ]
+  },
+  "western_europe": {
+   "name": "Western Europe",
+   "continent": "europe",
+   "neighbors": [
+    "great_britain",
+    "north_africa",
+    "northern_europe",
+    "southern_europe"
+   ]
+  },
+  "north_africa": {
+   "name": "North Africa",
+   "continent": "africa",
+   "neighbors": [
+    "brazil",
+    "congo",
+    "east_africa",
+    "egypt",
+    "southern_europe",
+    "western_europe"
+   ]
+  },
+  "egypt": {
+   "name": "Egypt",
+   "continent": "africa",
+   "neighbors": [
+    "east_africa",
+    "middle_east",
+    "north_africa",
+    "southern_europe"
+   ]
+  },
+  "east_africa": {
+   "name": "East Africa",
+   "continent": "africa",
+   "neighbors": [
+    "congo",
+    "egypt",
+    "madagascar",
+    "middle_east",
+    "north_africa",
+    "south_africa"
+   ]
+  },
+  "congo": {
+   "name": "Congo",
+   "continent": "africa",
+   "neighbors": [
+    "east_africa",
+    "north_africa",
+    "south_africa"
+   ]
+  },
+  "south_africa": {
+   "name": "South Africa",
+   "continent": "africa",
+   "neighbors": [
+    "congo",
+    "east_africa",
+    "madagascar"
+   ]
+  },
+  "madagascar": {
+   "name": "Madagascar",
+   "continent": "africa",
+   "neighbors": [
+    "east_africa",
+    "south_africa"
+   ]
+  },
+  "ural": {
+   "name": "Ural",
+   "continent": "asia",
+   "neighbors": [
+    "afghanistan",
+    "china",
+    "siberia",
+    "ukraine"
+   ]
+  },
+  "siberia": {
+   "name": "Siberia",
+   "continent": "asia",
+   "neighbors": [
+    "china",
+    "irkutsk",
+    "mongolia",
+    "ural",
+    "yakutsk"
+   ]
+  },
+  "yakutsk": {
+   "name": "Yakutsk",
+   "continent": "asia",
+   "neighbors": [
+    "irkutsk",
+    "kamchatka",
+    "siberia"
+   ]
+  },
+  "kamchatka": {
+   "name": "Kamchatka",
+   "continent": "asia",
+   "neighbors": [
+    "alaska",
+    "irkutsk",
+    "japan",
+    "mongolia",
+    "yakutsk"
+   ]
+  },
+  "irkutsk": {
+   "name": "Irkutsk",
+   "continent": "asia",
+   "neighbors": [
+    "kamchatka",
+    "mongolia",
+    "siberia",
+    "yakutsk"
+   ]
+  },
+  "mongolia": {
+   "name": "Mongolia",
+   "continent": "asia",
+   "neighbors": [
+    "china",
+    "irkutsk",
+    "japan",
+    "kamchatka",
+    "siberia"
+   ]
+  },
+  "japan": {
+   "name": "Japan",
+   "continent": "asia",
+   "neighbors": [
+    "kamchatka",
+    "mongolia"
+   ]
+  },
+  "afghanistan": {
+   "name": "Afghanistan",
+   "continent": "asia",
+   "neighbors": [
+    "china",
+    "india",
+    "middle_east",
+    "ukraine",
+    "ural"
+   ]
+  },
+  "china": {
+   "name": "China",
+   "continent": "asia",
+   "neighbors": [
+    "afghanistan",
+    "india",
+    "mongolia",
+    "siam",
+    "siberia",
+    "ural"
+   ]
+  },
+  "middle_east": {
+   "name": "Middle East",
+   "continent": "asia",
+   "neighbors": [
+    "afghanistan",
+    "east_africa",
+    "egypt",
+    "india",
+    "southern_europe",
+    "ukraine"
+   ]
+  },
+  "india": {
+   "name": "India",
+   "continent": "asia",
+   "neighbors": [
+    "afghanistan",
+    "china",
+    "middle_east",
+    "siam"
+   ]
+  },
+  "siam": {
+   "name": "Siam",
+   "continent": "asia",
+   "neighbors": [
+    "china",
+    "india",
+    "indonesia"
+   ]
+  },
+  "indonesia": {
+   "name": "Indonesia",
+   "continent": "australia",
+   "neighbors": [
+    "new_guinea",
+    "siam",
+    "western_australia"
+   ]
+  },
+  "new_guinea": {
+   "name": "New Guinea",
+   "continent": "australia",
+   "neighbors": [
+    "eastern_australia",
+    "indonesia",
+    "western_australia"
+   ]
+  },
+  "western_australia": {
+   "name": "Western Australia",
+   "continent": "australia",
+   "neighbors": [
+    "eastern_australia",
+    "indonesia",
+    "new_guinea"
+   ]
+  },
+  "eastern_australia": {
+   "name": "Eastern Australia",
+   "continent": "australia",
+   "neighbors": [
+    "new_guinea",
+    "western_australia"
+   ]
+  }
+ }
+}

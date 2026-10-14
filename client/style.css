@@ -1,0 +1,49 @@
+:root{--bg:#10151c;--panel:#1a222d;--ink:#e8edf3;--muted:#8d9aab;--line:#2c3846;--accent:#4aa3ff;--sea:#0d2236;--bad:#ff6b6b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,sans-serif}
+h1,h2{margin:.2em 0}
+.sub{color:var(--muted)}
+.error{color:var(--bad);min-height:1.4em}
+section#landing,section#lobby{max-width:520px;margin:8vh auto;padding:0 16px}
+label{display:block;margin:10px 0}
+input,select,button{font:inherit;padding:8px 10px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+button{background:var(--accent);color:#04121f;border:0;cursor:pointer;font-weight:600}
+button:disabled{opacity:.4;cursor:default}
+button.ghost{background:var(--panel);color:var(--ink);border:1px solid var(--line)}
+.row{display:flex;gap:12px;align-items:end}
+.row label{flex:1}
+#lobbyMembers{list-style:none;padding:0}
+#lobbyMembers li{padding:8px 10px;margin:6px 0;border-left:6px solid;background:var(--panel);border-radius:4px}
+#game{display:grid;grid-template-columns:1fr 320px;height:100vh}
+#mapWrap{background:var(--sea);overflow:hidden;position:relative}
+#mapWrap svg{width:100%;height:100%;display:block}
+aside{background:var(--panel);border-left:1px solid var(--line);overflow:auto;padding:10px;display:flex;flex-direction:column;gap:10px}
+.player{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;border:1px solid transparent}
+.player.current{border-color:var(--accent);background:#14304a}
+.player.out{opacity:.4;text-decoration:line-through}
+.player .dot{width:12px;height:12px;border-radius:50%;flex:none}
+.player .nums{margin-left:auto;color:var(--muted);font-size:13px;white-space:nowrap}
+#phaseTitle{font-weight:700;font-size:16px}
+#phaseHelp{color:var(--muted);margin:2px 0 8px}
+#controls{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+#controls input[type=number]{width:70px}
+.card{display:flex;gap:6px;align-items:center;padding:3px 6px;border:1px solid var(--line);border-radius:4px;margin:3px 0;font-size:13px}
+.card.sel{border-color:var(--accent);background:#14304a}
+#logBox{font-size:12.5px;color:var(--muted);max-height:30vh;overflow:auto}
+#logBox div{padding:2px 0;border-bottom:1px solid var(--line)}
+#lastAttack{font-size:13px}
+.dice{display:inline-block;min-width:22px;text-align:center;margin:0 2px;padding:1px 4px;border-radius:4px;font-weight:700}
+.dice.a{background:#7a1f1f}.dice.d{background:#1f3b7a}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#3a1414;border:1px solid var(--bad);padding:8px 14px;border-radius:6px;z-index:9}
+/* map */
+#mapWrap path{stroke:#0b0f14;stroke-width:1.2;transition:filter .1s;cursor:default}
+#mapWrap path.clickable{cursor:pointer}
+#mapWrap path.clickable:hover{filter:brightness(1.35)}
+#mapWrap path.dim{filter:brightness(.55)}
+#mapWrap path.sel{stroke:#fff;stroke-width:3}
+#mapWrap path.target{stroke:#ff4d4d;stroke-width:3;filter:brightness(1.2)}
+#mapWrap line{pointer-events:none;stroke:#c7d3e0;stroke-width:1.4;stroke-dasharray:5 4;opacity:.55}
+#mapWrap .army circle{fill:#0b0f14;stroke:#fff;stroke-width:1.3;opacity:.88}
+#mapWrap .army text{fill:#fff;font:700 13px system-ui,sans-serif;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+#mapWrap .army{pointer-events:none}
+@media (max-width:800px){#game{grid-template-columns:1fr;grid-template-rows:55vh auto;height:auto}}
