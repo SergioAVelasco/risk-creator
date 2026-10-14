@@ -14,8 +14,9 @@ letras). Cada jugador entra desde su navegador; 2 a 6 jugadores. Con 2 jugadores
 neutral (regla oficial): 14 territorios y 40 ejércitos repartidos al azar; defiende con
 dados pero no juega turnos ni roba cartas.
 
-El anfitrión elige en el lobby cuántos ejércitos coloca cada jugador por turno durante
-la preparación (1 clásico, 3, 5 por defecto, 10, o todos de una vez). En red local, usa la
+La preparación es **simultánea y oculta**: todos colocan a la vez, por rondas (el
+anfitrión elige el tamaño: 5, 10 por defecto, 20 o todo de una vez). Nadie ve lo que
+colocan los demás hasta que termina la fase; cada ronda se abre cuando todos confirman. En red local, usa la
 IP de la máquina en vez de `localhost`.
 
 ## Estructura

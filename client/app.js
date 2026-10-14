@@ -122,7 +122,11 @@ function buildMap() {
 }
 
 function neighbors(t) { return mapData.json.territories[t].neighbors; }
-const iAmCurrent = () => game.current === me && game.phase !== "finished";
+// En la preparación simultánea no hay turnos: puedes actuar hasta confirmar la ronda.
+const setupSim = () => game.phase === "setup" && game.setup_simultaneous;
+const iAmCurrent = () => setupSim()
+  ? !game.setup_ready[me]
+  : game.current === me && game.phase !== "finished";
 
 function legalTargets() {
   if (!selected) return [];
@@ -193,20 +197,34 @@ function renderSide() {
   $("players").innerHTML = game.players.concat(game.neutral ? [game.neutral] : []).map(p => {
     const terr = Object.values(game.owner).filter(o => o === p).length;
     const arm = Object.entries(game.owner).filter(([, o]) => o === p).reduce((s, [t]) => s + game.armies[t], 0);
-    const cls = ["player", p === game.current && game.phase !== "finished" ? "current" : "", game.eliminated.includes(p) ? "out" : ""].join(" ");
-    return `<div class="${cls}"><span class="dot" style="background:${colorOf(p)}"></span>${esc(nameOf(p))}${p === me ? " (tú)" : ""}
+    const isCur = setupSim() ? game.setup_ready[p] === false : p === game.current && game.phase !== "finished";
+    const cls = ["player", isCur ? "current" : "", game.eliminated.includes(p) ? "out" : ""].join(" ");
+    const ready = setupSim() && p !== game.neutral ? (game.setup_ready[p] ? " ✔ listo" : " …colocando") : "";
+    return `<div class="${cls}"><span class="dot" style="background:${colorOf(p)}"></span>${esc(nameOf(p))}${p === me ? " (tú)" : ""}${ready}
       <span class="nums">${terr}T · ${arm}⚔${p in game.card_counts ? ` · ${game.card_counts[p]}🂠` : ""}</span></div>`;
   }).join("");
 
   // phase
   const mine = iAmCurrent();
-  const who = mine ? "Tu turno" : `Turno de ${esc(nameOf(game.current))}`;
+  const who = setupSim() ? `Ronda ${game.setup_round}`
+    : mine ? "Tu turno" : `Turno de ${esc(nameOf(game.current))}`;
   $("phaseTitle").textContent = game.phase === "finished"
     ? `🏆 Ganó ${nameOf(game.winner)}` : `${who} — ${PHASE_NAMES[game.phase]}`;
   const c = $("controls"); c.innerHTML = "";
   let help = "";
   const ph = game.phase;
-  if (ph === "setup") {
+  if (setupSim()) {
+    const quota = game.setup_quota[me], placed = game.setup_placed;
+    if (mine) {
+      help = `Coloca ${quota} ejércitos en secreto: ${placed}/${quota}. Los demás no ven lo que pones hasta el final de la preparación (te quedan ${game.setup_left[me]} en total).`;
+      c.innerHTML = `<button id="suUndo" class="ghost" ${placed ? "" : "disabled"}>Deshacer</button>
+        <button id="suOk" ${placed === quota ? "" : "disabled"}>Confirmar ronda</button>`;
+      $("suUndo").onclick = () => send({ type: "setup_undo" });
+      $("suOk").onclick = () => send({ type: "setup_confirm" });
+    } else {
+      help = "Confirmado. Esperando a los demás jugadores…";
+    }
+  } else if (ph === "setup") {
     help = mine
       ? `Coloca ejércitos: ${game.setup_turn_left} en este turno (te quedan ${game.setup_left[me]} en total).`
       : "Esperando colocación inicial…";

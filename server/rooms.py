@@ -13,8 +13,8 @@ ROOT = Path(__file__).resolve().parent.parent
 MAPS_DIR = ROOT / "maps"
 COLORS = ["#e6194b", "#3b6fd4", "#2fa84f", "#f2b705", "#9b59b6", "#17b6b6"]
 MAX_PLAYERS = 6
-SETUP_BATCH_OPTIONS = (1, 3, 5, 10, 0)  # 0 = todos de una vez
-DEFAULT_SETUP_BATCH = 5
+SETUP_BATCH_OPTIONS = (5, 10, 20, 0)  # ejércitos por ronda; 0 = todos de una vez
+DEFAULT_SETUP_BATCH = 10
 
 
 def list_maps() -> list[dict]:
@@ -99,7 +99,8 @@ class Room:
         if len(self.members) < 2:
             raise RuleError("you need at least 2 players")
         gm = GameMap.load(MAPS_DIR / self.map_id / "map.json")
-        self.game = Game(gm, list(self.members), setup_batch=self.setup_batch)
+        self.game = Game(gm, list(self.members), setup_batch=self.setup_batch,
+                         simultaneous_setup=True)
 
     # -- actions
     def act(self, pid: str, msg: dict) -> None:
@@ -110,6 +111,10 @@ class Room:
         i = lambda k: int(msg.get(k, 0))  # noqa: E731
         if t == "place":
             g.place(pid, msg["territory"], i("count") or 1)
+        elif t == "setup_confirm":
+            g.confirm_setup(pid)
+        elif t == "setup_undo":
+            g.undo_setup(pid)
         elif t == "trade":
             g.trade_cards(pid, [int(x) for x in msg.get("indices", [])])
         elif t == "attack":

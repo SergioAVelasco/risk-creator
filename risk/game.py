@@ -19,7 +19,7 @@ MUST_TRADE_AT = 5  # holding this many cards forces a trade at reinforcement
 
 class Game:
     def __init__(self, gamemap: GameMap, players: list[str], rng: random.Random | None = None,
-                 setup_batch: int = 1):
+                 setup_batch: int = 1, simultaneous_setup: bool = False):
         if not 2 <= len(players) <= 6:
             raise RuleError("Risk needs 2 to 6 players")
         if len(set(players)) != len(players):
@@ -32,6 +32,14 @@ class Game:
         # (1 = reglas clásicas). 0 significa "todos de una vez".
         self.setup_batch = setup_batch or 10**9
         self.setup_turn_left = 0      # cuota restante del turno de setup actual
+        # Preparación simultánea y oculta: todos colocan a la vez, por rondas de
+        # `setup_batch` ejércitos, sin ver lo que colocan los demás. Se revela
+        # todo al terminar la fase. (Si es False: turnos clásicos uno a uno.)
+        self.simultaneous_setup = simultaneous_setup
+        self.setup_round = 0
+        self.setup_quota: dict[str, int] = {}     # ejércitos a colocar esta ronda
+        self.setup_pending: dict[str, dict[str, int]] = {}  # colocados, sin confirmar
+        self.setup_ready: dict[str, bool] = {}    # ya confirmó esta ronda
         self.map = gamemap
         self.players = list(players)  # solo quienes juegan turnos
         # Con 2 jugadores entra un tercer bando neutral (regla oficial): ocupa
@@ -80,8 +88,63 @@ class Game:
                 self.armies[self.rng.choice(mine)] += 1
         self.deck = build_deck(list(self.map.territories))
         self.rng.shuffle(self.deck)
+        if self.simultaneous_setup:
+            self.current = self.players[0]
+            self._begin_setup_round()
+            return
         self.current = self.players[-1]  # so the first placement goes to players[0]
         self._advance_setup()
+
+    # -- preparación simultánea
+    def _begin_setup_round(self) -> None:
+        """Abre una ronda: cada jugador recibe su cuota, o termina la fase."""
+        if not any(v > 0 for v in self.setup_left.values()):
+            self._finish_setup()
+            return
+        self.setup_round += 1
+        for p in self.players:
+            q = max(0, min(self.setup_batch, self.setup_left[p]))
+            self.setup_quota[p] = q
+            self.setup_pending[p] = {}
+            self.setup_ready[p] = q == 0
+
+    def _finish_setup(self) -> None:
+        self.setup_quota = {p: 0 for p in self.players}
+        self.setup_pending = {p: {} for p in self.players}
+        self.setup_ready = {p: True for p in self.players}
+        self.setup_turn_left = 0
+        self.phase = "reinforce"
+        self.current = self.players[0]
+        self.log.append({"event": "setup_done"})
+        self._start_turn()
+
+    def _require_setup_open(self, player: str) -> None:
+        if self.phase != "setup" or not self.simultaneous_setup:
+            raise RuleError("not allowed during the " + self.phase + " phase")
+        if player not in self.players:
+            raise RuleError("unknown player")
+        if self.setup_ready[player]:
+            raise RuleError("you already confirmed this round; wait for the others")
+
+    def undo_setup(self, player: str) -> None:
+        """Retira lo colocado esta ronda (antes de confirmar)."""
+        self._require_setup_open(player)
+        self.setup_pending[player] = {}
+
+    def confirm_setup(self, player: str) -> None:
+        """Confirma la ronda; cuando todos confirman se aplican y se abre la siguiente."""
+        self._require_setup_open(player)
+        placed = sum(self.setup_pending[player].values())
+        if placed != self.setup_quota[player]:
+            raise RuleError(f"place all {self.setup_quota[player]} armies before confirming "
+                            f"({placed} placed)")
+        self.setup_ready[player] = True
+        if all(self.setup_ready.values()):
+            for p in self.players:
+                for t, n in self.setup_pending[p].items():
+                    self.armies[t] += n
+                self.setup_left[p] -= self.setup_quota[p]
+            self._begin_setup_round()
 
     def _advance_setup(self) -> None:
         """Move to the next player with armies left to place, or start play."""
@@ -133,6 +196,19 @@ class Game:
     # ------------------------------------------------------------ placing armies
     def place(self, player: str, territory: str, count: int = 1) -> None:
         """Place armies: initial setup (one at a time) or reinforcement."""
+        if self.phase == "setup" and self.simultaneous_setup:
+            # Simultánea: no hay turno. Lo colocado queda pendiente (y privado)
+            # hasta que todos confirmen la ronda.
+            self._require_setup_open(player)
+            self._require_own(player, territory)
+            if count < 1:
+                raise RuleError("must place at least one army")
+            left = self.setup_quota[player] - sum(self.setup_pending[player].values())
+            if count > left:
+                raise RuleError(f"you can place {left} more armies this round")
+            pend = self.setup_pending[player]
+            pend[territory] = pend.get(territory, 0) + count
+            return
         self._require_turn(player, "setup", "reinforce", "attack")
         self._require_own(player, territory)
         if count < 1:
@@ -360,9 +436,25 @@ class Game:
     # ------------------------------------------------------------ serialization
     def to_dict(self, viewer: str | None = None) -> dict:
         """Snapshot for clients. Other players' cards are reduced to a count."""
+        hide = self.phase == "setup" and self.simultaneous_setup
+        armies = self.armies
+        if hide:
+            # Cada uno ve el reparto inicial y SU propia colocación; lo que
+            # colocan los demás (confirmado o no) queda oculto hasta el final.
+            mine = self.setup_pending.get(viewer, {})
+            armies = {
+                t: (self.armies[t] + mine.get(t, 0)
+                    if self.owner[t] in (viewer, self.neutral) else 1)
+                for t in self.armies
+            }
         return {
             "map": self.map.name,
             "players": self.players,
+            "setup_simultaneous": self.simultaneous_setup,
+            "setup_round": self.setup_round,
+            "setup_quota": self.setup_quota,
+            "setup_ready": self.setup_ready,
+            "setup_placed": sum(self.setup_pending.get(viewer, {}).values()),
             "neutral": self.neutral,
             "eliminated": self.eliminated,
             "winner": self.winner,
@@ -373,7 +465,7 @@ class Game:
             "setup_turn_left": self.setup_turn_left,
             "setup_batch": self.setup_batch if self.setup_batch < 10**9 else 0,
             "owner": self.owner,
-            "armies": self.armies,
+            "armies": armies,
             "pending_conquest": self.pending_conquest,
             "card_counts": {p: len(c) for p, c in self.cards.items()},
             "cards": [

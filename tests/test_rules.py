@@ -132,6 +132,69 @@ class SetupTests(unittest.TestCase):
             self.assertEqual(g.phase, "reinforce")
             self.assertTrue(all(v == 0 for v in g.setup_left.values()))
 
+    # --- preparación simultánea y oculta
+    def sim_game(self, n=3, batch=10):
+        return Game(GameMap.load(CLASSIC), [f"p{i}" for i in range(n)], ScriptedRng(1),
+                    setup_batch=batch, simultaneous_setup=True)
+
+    def test_simultaneous_setup_has_no_turns_and_rounds_unlock(self):
+        g = self.sim_game(3, batch=10)
+        self.assertEqual(g.setup_round, 1)
+        for p in g.players:
+            self.assertEqual(g.setup_quota[p], 10)
+        # cualquiera puede colocar, en cualquier orden
+        for p in reversed(g.players):
+            g.place(p, g.territories_of(p)[0], 10)
+        # nadie confirmó: sigue la ronda 1
+        self.assertEqual(g.setup_round, 1)
+        for p in g.players[:-1]:
+            g.confirm_setup(p)
+        self.assertEqual(g.setup_round, 1)   # falta uno
+        g.confirm_setup(g.players[-1])
+        self.assertEqual(g.setup_round, 2)   # se desbloquean otros 10
+        self.assertEqual(g.setup_quota["p0"], 10)
+
+    def test_simultaneous_setup_requires_full_quota_and_allows_undo(self):
+        g = self.sim_game(3, batch=10)
+        p = "p0"
+        t = g.territories_of(p)[0]
+        g.place(p, t, 4)
+        with self.assertRaises(RuleError):
+            g.confirm_setup(p)
+        with self.assertRaises(RuleError):
+            g.place(p, t, 7)             # se pasa de la cuota
+        g.undo_setup(p)
+        g.place(p, t, 10)
+        g.confirm_setup(p)
+        with self.assertRaises(RuleError):
+            g.place(p, t, 1)             # ya confirmó la ronda
+        self.assertEqual(g.armies[t], 1)  # aún no se aplica: faltan los demás
+
+    def test_simultaneous_setup_hides_other_players_placements(self):
+        g = self.sim_game(3, batch=10)
+        t0 = g.territories_of("p0")[0]
+        g.place("p0", t0, 10)
+        mine = g.to_dict("p0")["armies"][t0]
+        theirs = g.to_dict("p1")["armies"][t0]
+        self.assertEqual(mine, 11)       # el dueño ve su colocación
+        self.assertEqual(theirs, 1)      # los demás no
+        self.assertEqual(g.to_dict("p1")["setup_placed"], 0)
+
+    def test_simultaneous_setup_finishes_and_reveals(self):
+        g = self.sim_game(3, batch=10)
+        while g.phase == "setup":
+            for p in g.players:
+                g.place(p, g.territories_of(p)[0], g.setup_quota[p])
+            for p in g.players:
+                g.confirm_setup(p)
+        self.assertEqual(g.phase, "reinforce")
+        self.assertEqual(g.current, "p0")
+        t0 = g.territories_of("p1")[0]
+        self.assertEqual(g.to_dict("p0")["armies"][t0], g.armies[t0])  # ya visible
+        for p in g.players:
+            total = sum(g.armies[t] for t in g.territories_of(p))
+            self.assertEqual(total, 35)
+
     def test_setup_round_robin_then_play(self):
         g = new_game(3)
         seen = []

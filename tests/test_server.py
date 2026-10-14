@@ -36,14 +36,14 @@ class ServerTests(unittest.TestCase):
                     break
             self.assertIn("host", m["message"])
 
-            # non-host cannot change settings; host sets the classic 1-per-turn setup
-            b.send_json({"type": "settings", "setup_batch": 10})
+            # non-host cannot change settings either
+            b.send_json({"type": "settings", "setup_batch": 20})
             while True:
                 m = b.receive_json()
                 if m["type"] == "error":
                     break
             self.assertIn("host", m["message"])
-            a.send_json({"type": "settings", "setup_batch": 1})
+            a.send_json({"type": "settings", "setup_batch": 5})
 
             a.send_json({"type": "start"})
             state = None
@@ -53,21 +53,34 @@ class ServerTests(unittest.TestCase):
                     state = m
             g = state["game"]
             self.assertEqual(g["phase"], "setup")
-            self.assertEqual(g["current"], "p1")
+            self.assertTrue(g["setup_simultaneous"])
+            self.assertEqual(g["setup_quota"]["p1"], 5)
             self.assertEqual(g["cards"], [])
             mine = [t for t, o in g["owner"].items() if o == "p1"][0]
-            a.send_json({"type": "place", "territory": mine})
-            while True:
-                m = a.receive_json()
-                if m["type"] == "state" and m["game"]["current"] == "p2":
-                    break
-            # wrong player acting gets an error, not a crash
-            a.send_json({"type": "place", "territory": mine})
+
+            # confirming before placing the whole quota is an error
+            a.send_json({"type": "setup_confirm"})
             while True:
                 m = a.receive_json()
                 if m["type"] == "error":
                     break
-            self.assertIn("turn", m["message"])
+            self.assertIn("place all", m["message"])
+
+            # simultaneous: p1 places privately without waiting for anyone's turn
+            a.send_json({"type": "place", "territory": mine, "count": 5})
+            while True:
+                m = a.receive_json()
+                if m["type"] == "state":
+                    break
+            self.assertEqual(m["game"]["armies"][mine], 6)  # own placement visible
+            # ...but p2 sees only the base army on p1's territory
+            while True:
+                m = b.receive_json()
+                if m["type"] == "state" and m["game"] and m["game"]["setup_placed"] == 0:
+                    last_b = m
+                    if last_b["game"]["armies"][mine] == 1:
+                        break
+            self.assertEqual(last_b["game"]["armies"][mine], 1)
 
     def test_creator_can_choose_the_room_code(self):
         r = self.client.post("/api/rooms", json={"map": "classic", "code": "ab12"})
