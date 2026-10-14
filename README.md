@@ -55,3 +55,13 @@ g.move_in("ana", 3)                   # tras conquistar
 g.end_attack("ana"); g.fortify("ana", "alaska", "alberta", 2)
 g.to_dict(viewer="ana")               # estado para el cliente
 ```
+
+## Jugar por internet (túnel)
+
+```bash
+tools/play_online.sh        # puerto 8000 por defecto
+```
+
+Levanta el servidor y abre un túnel público (`cloudflared` si está instalado, si no
+`localhost.run` por ssh). Pasa a tu amigo la URL `https://...` que se imprime; la sala
+y el enlace para compartir funcionan igual por ese dominio.
