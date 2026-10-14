@@ -168,8 +168,13 @@ class Game:
             raise RuleError(f"unknown territory {target!r}")
         if self.owner[target] == player:
             raise RuleError("you cannot attack your own territory")
+        # Regla de adyacencia: solo se ataca a un territorio vecino directo
+        # (comparten frontera según el mapa). No hay ataques a distancia.
         if target not in self.map.territories[source].neighbors:
             raise RuleError(f"{source} is not adjacent to {target}")
+        # Siempre debe quedar al menos 1 ejército defendiendo el territorio de
+        # origen, por eso solo se pueden usar (ejércitos - 1) para atacar, con
+        # un máximo de 3 dados.
         max_dice = min(3, self.armies[source] - 1)
         if max_dice < 1:
             raise RuleError("you need at least 2 armies to attack")
@@ -177,7 +182,11 @@ class Game:
             raise RuleError(f"you can attack with 1 to {max_dice} dice")
 
         defender = self.owner[target]
-        d_dice = min(2, self.armies[target])
+        d_dice = min(2, self.armies[target])  # el defensor tira 1 o 2 dados
+        # Se ordenan de mayor a menor y se comparan por parejas: el mejor dado
+        # del atacante contra el mejor del defensor, luego el segundo contra el
+        # segundo. zip se detiene en la lista más corta, así que sobran dados
+        # sin comparar cuando uno de los dos tiró más.
         a_rolls = sorted((self.rng.randint(1, 6) for _ in range(dice)), reverse=True)
         d_rolls = sorted((self.rng.randint(1, 6) for _ in range(d_dice)), reverse=True)
         a_lost = d_lost = 0
@@ -204,6 +213,9 @@ class Game:
         self.owner[target] = player
         self.conquered_this_turn = True
         result["conquered"] = True
+        # Al conquistar hay que ocupar el territorio: mínimo tantos ejércitos
+        # como dados usados (o los que haya disponibles) y máximo todos menos
+        # uno, porque el territorio de origen nunca puede quedar vacío.
         max_move = self.armies[source] - 1
         self.pending_conquest = {
             "from": source, "to": target, "min": min(dice, max_move), "max": max_move,
@@ -245,12 +257,18 @@ class Game:
 
     # ------------------------------------------------------------ fortify / end turn
     def fortify(self, player: str, source: str, target: str, count: int) -> None:
-        """Move armies along a path of your own territories, then the turn ends."""
+        """Move armies along a path of your own territories, then the turn ends.
+
+        A diferencia del ataque, el destino NO tiene que ser vecino directo del
+        origen: basta con que exista un camino de territorios propios que los
+        una (ver _connected). Solo se permite un movimiento por turno.
+        """
         self._require_turn(player, "fortify")
         self._require_own(player, source)
         self._require_own(player, target)
         if source == target:
             raise RuleError("choose two different territories")
+        # Igual que al atacar: en el origen debe quedar al menos 1 ejército.
         if not 1 <= count <= self.armies[source] - 1:
             raise RuleError(f"you can move 1 to {self.armies[source] - 1} armies")
         if not self._connected(player, source, target):
@@ -260,12 +278,20 @@ class Game:
         self.end_turn(player)
 
     def _connected(self, player: str, a: str, b: str) -> bool:
+        """¿Se puede llegar de `a` a `b` pasando solo por territorios de `player`?
+
+        Búsqueda en anchura (BFS) sobre el grafo del mapa: se parte de `a`, se
+        visitan sus vecinos propios, luego los vecinos de esos, y así hasta
+        encontrar `b` o quedarse sin territorios por explorar. Un territorio
+        enemigo en medio corta el camino porque nunca se mete en la cola.
+        """
         seen, queue = {a}, deque([a])
         while queue:
             t = queue.popleft()
             if t == b:
                 return True
             for n in self.map.territories[t].neighbors:
+                # `seen` evita volver sobre lo ya explorado (y bucles infinitos).
                 if n not in seen and self.owner[n] == player:
                     seen.add(n)
                     queue.append(n)
