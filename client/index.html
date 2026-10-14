@@ -26,6 +26,13 @@
   <h2>Sala <span id="lobbyCode"></span></h2>
   <p class="sub">Comparte este enlace: <input id="shareLink" readonly size="38"></p>
   <ul id="lobbyMembers"></ul>
+  <label id="batchRow">Ejércitos por turno en la preparación
+    <select id="batchSelect">
+      <option value="1">1 (clásico)</option><option value="3">3</option>
+      <option value="5">5</option><option value="10">10</option>
+      <option value="0">Todos de una vez</option>
+    </select>
+  </label>
   <button id="startBtn" hidden>Empezar partida</button>
   <p id="lobbyHint" class="sub"></p>
 </section>

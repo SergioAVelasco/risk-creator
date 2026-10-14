@@ -79,6 +79,8 @@ async def ws_endpoint(ws: WebSocket, code: str, name: str = "", token: str = "")
             try:
                 if msg.get("type") == "start":
                     room.start(member.pid)
+                elif msg.get("type") == "settings":
+                    room.set_setup_batch(member.pid, int(msg.get("setup_batch")))
                 else:
                     room.act(member.pid, msg)
             except (RuleError, KeyError, ValueError, TypeError) as e:

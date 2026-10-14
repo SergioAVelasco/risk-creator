@@ -18,13 +18,20 @@ MUST_TRADE_AT = 5  # holding this many cards forces a trade at reinforcement
 
 
 class Game:
-    def __init__(self, gamemap: GameMap, players: list[str], rng: random.Random | None = None):
+    def __init__(self, gamemap: GameMap, players: list[str], rng: random.Random | None = None,
+                 setup_batch: int = 1):
         if not 2 <= len(players) <= 6:
             raise RuleError("Risk needs 2 to 6 players")
         if len(set(players)) != len(players):
             raise RuleError("player ids must be unique")
         if len(gamemap.territories) < len(players):
             raise RuleError("map has fewer territories than players")
+        if setup_batch < 0:
+            raise RuleError("setup_batch cannot be negative")
+        # Ejércitos que cada jugador coloca seguidos en su turno de preparación
+        # (1 = reglas clásicas). 0 significa "todos de una vez".
+        self.setup_batch = setup_batch or 10**9
+        self.setup_turn_left = 0      # cuota restante del turno de setup actual
         self.map = gamemap
         self.players = list(players)  # solo quienes juegan turnos
         # Con 2 jugadores entra un tercer bando neutral (regla oficial): ocupa
@@ -81,6 +88,7 @@ class Game:
         if not any(self.setup_left.values()):
             self.phase = "reinforce"
             self.current = self.players[0]
+            self.setup_turn_left = 0
             self._start_turn()
             return
         i = self.players.index(self.current)
@@ -88,6 +96,9 @@ class Game:
             p = self.players[(i + k) % len(self.players)]
             if self.setup_left[p] > 0:
                 self.current = p
+                # El turno dura hasta colocar `setup_batch` ejércitos (o los
+                # que le queden, si son menos).
+                self.setup_turn_left = min(self.setup_batch, self.setup_left[p])
                 return
 
     # ------------------------------------------------------------ queries
@@ -128,11 +139,14 @@ class Game:
             raise RuleError("must place at least one army")
 
         if self.phase == "setup":
-            if count != 1:
-                raise RuleError("place armies one at a time during setup")
-            self.armies[territory] += 1
-            self.setup_left[player] -= 1
-            self._advance_setup()
+            if count > self.setup_turn_left:
+                raise RuleError(f"you can place {self.setup_turn_left} more armies this turn")
+            self.armies[territory] += count
+            self.setup_left[player] -= count
+            self.setup_turn_left -= count
+            # El turno pasa al siguiente jugador solo al completar la cuota.
+            if self.setup_turn_left == 0:
+                self._advance_setup()
             return
 
         if self.phase == "reinforce" and len(self.cards[player]) >= MUST_TRADE_AT:
@@ -356,6 +370,8 @@ class Game:
             "current": self.current,
             "reinforcements": self.reinforcements,
             "setup_left": self.setup_left,
+            "setup_turn_left": self.setup_turn_left,
+            "setup_batch": self.setup_batch if self.setup_batch < 10**9 else 0,
             "owner": self.owner,
             "armies": self.armies,
             "pending_conquest": self.pending_conquest,

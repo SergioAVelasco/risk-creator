@@ -36,6 +36,15 @@ class ServerTests(unittest.TestCase):
                     break
             self.assertIn("host", m["message"])
 
+            # non-host cannot change settings; host sets the classic 1-per-turn setup
+            b.send_json({"type": "settings", "setup_batch": 10})
+            while True:
+                m = b.receive_json()
+                if m["type"] == "error":
+                    break
+            self.assertIn("host", m["message"])
+            a.send_json({"type": "settings", "setup_batch": 1})
+
             a.send_json({"type": "start"})
             state = None
             while state is None or state["game"] is None:

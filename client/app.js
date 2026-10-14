@@ -22,6 +22,7 @@ async function init() {
   $("createBtn").onclick = createRoom;
   $("joinBtn").onclick = () => join($("codeInput").value.trim().toUpperCase());
   $("startBtn").onclick = () => send({ type: "start" });
+  $("batchSelect").onchange = (e) => send({ type: "settings", setup_batch: +e.target.value });
   if (location.hash.length === 5) { $("codeInput").value = location.hash.slice(1); }
 }
 function landingError(msg) { $("landingError").textContent = msg || ""; }
@@ -95,6 +96,8 @@ function renderLobby() {
     `<li style="border-color:${m.color}">${esc(m.name)}${m.pid === lobby.host ? " ★" : ""}${m.pid === me ? " (tú)" : ""}${m.connected ? "" : " — desconectado"}</li>`).join("");
   const isHost = me === lobby.host;
   $("startBtn").hidden = !isHost;
+  $("batchSelect").disabled = !isHost;
+  $("batchSelect").value = String(lobby.setup_batch);
   $("startBtn").disabled = lobby.members.length < 2;
   $("lobbyHint").textContent = lobby.members.length < 2
     ? "Se necesitan al menos 2 jugadores." : (isHost ? "Todo listo." : "Esperando al anfitrión…");
@@ -203,7 +206,9 @@ function renderSide() {
   let help = "";
   const ph = game.phase;
   if (ph === "setup") {
-    help = mine ? `Coloca un ejército (te quedan ${game.setup_left[me]}).` : "Esperando colocación inicial…";
+    help = mine
+      ? `Coloca ejércitos: ${game.setup_turn_left} en este turno (te quedan ${game.setup_left[me]} en total).`
+      : "Esperando colocación inicial…";
   } else if (ph === "reinforce" || (ph === "attack" && game.reinforcements > 0 && mine)) {
     if (mine) {
       help = `Refuerzos por colocar: ${game.reinforcements}. Haz clic en un territorio tuyo.`;

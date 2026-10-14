@@ -112,6 +112,26 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(g.eliminated, [])
         self.assertIsNone(g.winner)
 
+    def test_setup_batch_keeps_turn_until_quota_done(self):
+        g = Game(GameMap.load(CLASSIC), ["p0", "p1", "p2"], ScriptedRng(1), setup_batch=5)
+        first = g.current
+        for _ in range(4):
+            g.place(first, g.territories_of(first)[0])
+            self.assertEqual(g.current, first)
+        g.place(first, g.territories_of(first)[0])
+        self.assertNotEqual(g.current, first)
+        with self.assertRaises(RuleError):  # no puede pasarse de la cuota
+            g.place(g.current, g.territories_of(g.current)[0], 6)
+
+    def test_setup_batch_handles_remainder_and_finishes(self):
+        for batch in (3, 10, 0):
+            g = Game(GameMap.load(CLASSIC), ["p0", "p1", "p2"], ScriptedRng(1), setup_batch=batch)
+            while g.phase == "setup":
+                n = g.setup_turn_left
+                g.place(g.current, g.territories_of(g.current)[0], n)
+            self.assertEqual(g.phase, "reinforce")
+            self.assertTrue(all(v == 0 for v in g.setup_left.values()))
+
     def test_setup_round_robin_then_play(self):
         g = new_game(3)
         seen = []

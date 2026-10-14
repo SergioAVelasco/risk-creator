@@ -13,6 +13,8 @@ ROOT = Path(__file__).resolve().parent.parent
 MAPS_DIR = ROOT / "maps"
 COLORS = ["#e6194b", "#3b6fd4", "#2fa84f", "#f2b705", "#9b59b6", "#17b6b6"]
 MAX_PLAYERS = 6
+SETUP_BATCH_OPTIONS = (1, 3, 5, 10, 0)  # 0 = todos de una vez
+DEFAULT_SETUP_BATCH = 5
 
 
 def list_maps() -> list[dict]:
@@ -45,6 +47,7 @@ class Room:
     members: dict[str, Member] = field(default_factory=dict)  # pid -> Member
     host: str | None = None
     game: Game | None = None
+    setup_batch: int = DEFAULT_SETUP_BATCH
 
     # -- membership
     def join(self, name: str, token: str | None) -> Member:
@@ -66,6 +69,15 @@ class Room:
             self.host = pid
         return m
 
+    def set_setup_batch(self, pid: str, value: int) -> None:
+        if pid != self.host:
+            raise RuleError("only the host can change the settings")
+        if self.game is not None:
+            raise RuleError("the game already started")
+        if value not in SETUP_BATCH_OPTIONS:
+            raise RuleError("invalid setup batch")
+        self.setup_batch = value
+
     def start(self, pid: str) -> None:
         if pid != self.host:
             raise RuleError("only the host can start the game")
@@ -74,7 +86,7 @@ class Room:
         if len(self.members) < 2:
             raise RuleError("you need at least 2 players")
         gm = GameMap.load(MAPS_DIR / self.map_id / "map.json")
-        self.game = Game(gm, list(self.members))
+        self.game = Game(gm, list(self.members), setup_batch=self.setup_batch)
 
     # -- actions
     def act(self, pid: str, msg: dict) -> None:
@@ -115,6 +127,7 @@ class Room:
         return {
             "code": self.code, "map": self.map_id, "host": self.host,
             "started": self.game is not None,
+            "setup_batch": self.setup_batch,
             "members": [{"pid": m.pid, "name": m.name, "color": m.color, "connected": m.connected}
                         for m in self.members.values()],
         }
