@@ -1,5 +1,7 @@
 :root{--bg:#10151c;--panel:#1a222d;--ink:#e8edf3;--muted:#8d9aab;--line:#2c3846;--accent:#4aa3ff;--sea:#0d2236;--bad:#ff6b6b}
 *{box-sizing:border-box}
+/* un display explícito (p. ej. #game{display:grid}) anularía el atributo hidden */
+[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,sans-serif}
 h1,h2{margin:.2em 0}
 .sub{color:var(--muted)}
