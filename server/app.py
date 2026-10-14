@@ -97,6 +97,19 @@ async def ws_endpoint(ws: WebSocket, code: str, name: str = "", token: str = "")
             await broadcast(code)
 
 
+@app.middleware("http")
+async def no_stale_client(request, call_next):
+    """Que el navegador revalide el cliente (HTML/CSS/JS) en cada carga.
+
+    Sin esto puede reutilizar un style.css o app.js antiguos tras una
+    actualización y mostrar la interfaz rota.
+    """
+    response = await call_next(request)
+    if request.url.path == "/" or request.url.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 app.mount("/maps", StaticFiles(directory=MAPS_DIR), name="maps")
 app.mount("/static", StaticFiles(directory=ROOT / "client"), name="static")
 
