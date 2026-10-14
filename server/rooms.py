@@ -71,8 +71,8 @@ class Room:
             raise RuleError("only the host can start the game")
         if self.game is not None:
             raise RuleError("the game already started")
-        if len(self.members) < 3:
-            raise RuleError("you need at least 3 players")
+        if len(self.members) < 2:
+            raise RuleError("you need at least 2 players")
         gm = GameMap.load(MAPS_DIR / self.map_id / "map.json")
         self.game = Game(gm, list(self.members))
 

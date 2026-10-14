@@ -67,7 +67,7 @@ class MapTests(unittest.TestCase):
 
 class SetupTests(unittest.TestCase):
     def test_starting_armies_by_player_count(self):
-        for n, armies in {3: 35, 4: 30, 5: 25, 6: 20}.items():
+        for n, armies in {2: 40, 3: 35, 4: 30, 5: 25, 6: 20}.items():
             g = new_game(n)
             total = {p: 0 for p in g.players}
             for t, o in g.owner.items():
@@ -103,9 +103,10 @@ class SetupTests(unittest.TestCase):
     def test_player_count_limits(self):
         m = GameMap.load(CLASSIC)
         with self.assertRaises(RuleError):
-            Game(m, ["a", "b"])
+            Game(m, ["a"])
         with self.assertRaises(RuleError):
             Game(m, list("abcdefg"))
+        Game(m, ["a", "b"])  # two players is allowed
 
 
 class ReinforcementTests(unittest.TestCase):

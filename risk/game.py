@@ -12,14 +12,14 @@ from .cards import Card, build_deck, is_valid_set, set_value
 from .errors import RuleError
 from .gamemap import GameMap
 
-STARTING_ARMIES = {3: 35, 4: 30, 5: 25, 6: 20}
+STARTING_ARMIES = {2: 40, 3: 35, 4: 30, 5: 25, 6: 20}
 MUST_TRADE_AT = 5  # holding this many cards forces a trade at reinforcement
 
 
 class Game:
     def __init__(self, gamemap: GameMap, players: list[str], rng: random.Random | None = None):
-        if not 3 <= len(players) <= 6:
-            raise RuleError("classic Risk needs 3 to 6 players")
+        if not 2 <= len(players) <= 6:
+            raise RuleError("Risk needs 2 to 6 players")
         if len(set(players)) != len(players):
             raise RuleError("player ids must be unique")
         if len(gamemap.territories) < len(players):

@@ -6,6 +6,14 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 PORT="${1:-8000}"
 
+# Si el puerto ya está ocupado (p. ej. un servidor anterior), el túnel apuntaría
+# a ese proceso viejo en vez de al nuevo: mejor abortar con un mensaje claro.
+if python3 -c "import socket,sys; sys.exit(socket.socket().connect_ex(('127.0.0.1', $PORT)) != 0)"; then
+  echo "El puerto $PORT ya está en uso. Cierra el otro servidor o usa otro puerto:" >&2
+  echo "  tools/play_online.sh 8001" >&2
+  exit 1
+fi
+
 python3 -m uvicorn server.app:app --host 127.0.0.1 --port "$PORT" &
 SERVER_PID=$!
 trap 'kill $SERVER_PID 2>/dev/null' EXIT

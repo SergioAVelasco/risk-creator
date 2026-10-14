@@ -95,9 +95,9 @@ function renderLobby() {
     `<li style="border-color:${m.color}">${esc(m.name)}${m.pid === lobby.host ? " ★" : ""}${m.pid === me ? " (tú)" : ""}${m.connected ? "" : " — desconectado"}</li>`).join("");
   const isHost = me === lobby.host;
   $("startBtn").hidden = !isHost;
-  $("startBtn").disabled = lobby.members.length < 3;
-  $("lobbyHint").textContent = lobby.members.length < 3
-    ? "Se necesitan al menos 3 jugadores." : (isHost ? "Todo listo." : "Esperando al anfitrión…");
+  $("startBtn").disabled = lobby.members.length < 2;
+  $("lobbyHint").textContent = lobby.members.length < 2
+    ? "Se necesitan al menos 2 jugadores." : (isHost ? "Todo listo." : "Esperando al anfitrión…");
 }
 
 const colorOf = (pid) => lobby.members.find(m => m.pid === pid).color;
