@@ -63,6 +63,10 @@ class Room:
             for m in self.members.values():
                 if not m.connected and m.name.lower() == wanted:
                     return m
+            # Nombre ya tomado por alguien conectado: los nombres son únicos
+            # en la sala (también es lo que permite reconectar por nombre).
+            if any(m.name.lower() == wanted for m in self.members.values()):
+                raise RuleError("that name is already taken in this room")
         if self.game is not None:
             raise RuleError("the game already started; to rejoin use the same name "
                             "you had (and only while that player is disconnected)")

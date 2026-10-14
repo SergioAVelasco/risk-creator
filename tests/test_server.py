@@ -94,6 +94,15 @@ class ServerTests(unittest.TestCase):
             with self.client.websocket_connect(f"/ws/{code}?name=Intruso") as x:
                 self.assertEqual(x.receive_json()["type"], "fatal")
 
+    def test_duplicate_names_are_rejected(self):
+        code = self.client.post("/api/rooms", json={"map": "classic"}).json()["code"]
+        with self.client.websocket_connect(f"/ws/{code}?name=Ana") as a:
+            a.receive_json()
+            with self.client.websocket_connect(f"/ws/{code}?name=ana") as dup:
+                m = dup.receive_json()
+                self.assertEqual(m["type"], "fatal")
+                self.assertIn("name", m["message"])
+
     def test_unknown_room_is_fatal(self):
         with self.client.websocket_connect("/ws/ZZZZ?name=X") as ws:
             self.assertEqual(ws.receive_json()["type"], "fatal")
