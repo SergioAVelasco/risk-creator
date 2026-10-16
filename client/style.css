@@ -1,64 +1,195 @@
-:root{--bg:#10151c;--panel:#1a222d;--ink:#e8edf3;--muted:#8d9aab;--line:#2c3846;--accent:#4aa3ff;--sea:#0d2236;--bad:#ff6b6b}
+/* Carta náutica / mesa de operaciones.
+   Toda la identidad sale de este bloque de variables. */
+:root{
+  --sea:#cfe2df;          /* mar: papel de carta */
+  --sea-line:#b7d0cc;     /* retícula */
+  --ink:#1b2a41;          /* tinta marino */
+  --ink-soft:#4b5a70;
+  --paper:#f3f0e6;        /* hojas de los paneles */
+  --paper-edge:#d9d4c3;
+  --course:#c2185b;       /* rumbo: órdenes y batallas, nada más */
+  --ok:#2f6b4f;
+  --display:"Big Shoulders Display","Arial Narrow",sans-serif;
+  --text:"Atkinson Hyperlegible Next","Atkinson Hyperlegible",system-ui,sans-serif;
+  --surface:#fff;         /* campos, partes de batalla, cartas */
+  --land-shadow:rgba(27,42,65,.28);
+  --grain:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .1  0 0 0 0 .13  0 0 0 0 .2  0 0 0 .16 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  --rule:1.5px solid var(--ink);
+}
+/* Carta nocturna: las cartas náuticas reales tienen una paleta de noche */
+@media (prefers-color-scheme:dark){
+  :root{
+    --sea:#0e2230; --sea-line:#17384a;
+    --ink:#e7e2d0; --ink-soft:#9fb0b8;
+    --paper:#16303f; --paper-edge:#244557;
+    --course:#ff5c9a; --surface:#1d3b4d;
+    --land-shadow:rgba(0,0,0,.5);
+  }
+  #topbar{background:#08151e!important;color:var(--ink)!important}
+  .dice.a{color:#0e2230}
+  button{color:#0e2230}
+  button.ghost{color:var(--ink)}
+  #mapWrap .army circle{fill:#0e2230}
+  #mapWrap path{stroke:#0e2230}
+  #mapWrap .arrows .casing{stroke:#0e2230}
+}
 *{box-sizing:border-box}
-/* un display explícito (p. ej. #game{display:grid}) anularía el atributo hidden */
 [hidden]{display:none!important}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,sans-serif}
-h1,h2{margin:.2em 0}
-.sub{color:var(--muted)}
-.error{color:var(--bad);min-height:1.4em}
-section#landing,section#lobby{max-width:520px;margin:8vh auto;padding:0 16px}
-label{display:block;margin:10px 0}
-input,select,button{font:inherit;padding:8px 10px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
-button{background:var(--accent);color:#04121f;border:0;cursor:pointer;font-weight:600}
-button:disabled{opacity:.4;cursor:default}
-button.ghost{background:var(--panel);color:var(--ink);border:1px solid var(--line)}
+body{margin:0;background:var(--sea);color:var(--ink);font:15px/1.45 var(--text)}
+h1,h2{font-family:var(--display);font-weight:800;margin:0;letter-spacing:.01em}
+.sub{color:var(--ink-soft)}
+.error{color:var(--course);min-height:1.4em;font-weight:600}
+:focus-visible{outline:3px solid var(--course);outline-offset:2px}
+
+/* ---------- controles ---------- */
+label{display:block;margin:12px 0;font-weight:600}
+input,select{font:inherit;padding:8px 10px;border-radius:3px;border:var(--rule);background:var(--surface);color:var(--ink);margin-top:4px}
+button{font:inherit;font-weight:700;padding:8px 14px;border-radius:3px;border:var(--rule);background:var(--ink);color:var(--paper);cursor:pointer;box-shadow:2px 2px 0 var(--ink-soft)}
+button:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--ink-soft)}
+button:disabled{opacity:.4;cursor:default;box-shadow:none}
+button.ghost{background:var(--paper);color:var(--ink);box-shadow:none}
+button.ghost:hover:not(:disabled){background:var(--surface)}
+
+/* ---------- entrada y sala ---------- */
+body{min-height:100vh;
+  background-image:radial-gradient(ellipse at 20% 10%,rgba(255,255,255,.35),transparent 55%),
+    linear-gradient(var(--sea-line) 1px,transparent 1px),linear-gradient(90deg,var(--sea-line) 1px,transparent 1px);
+  background-size:100% 100%,64px 64px,64px 64px}
+/* rosa de los vientos: rayos de rumbo + anillos de graduación, solo CSS */
+.compass{position:fixed;right:-18vmin;bottom:-22vmin;width:96vmin;height:96vmin;border-radius:50%;pointer-events:none;color:var(--ink);opacity:.2;
+  background:
+    repeating-radial-gradient(circle,transparent 0 11.2vmin,currentColor 11.2vmin 11.4vmin),
+    repeating-conic-gradient(from -1deg,currentColor 0 .7deg,transparent .7deg 11.25deg),
+    repeating-conic-gradient(from -.4deg,currentColor 0 .35deg,transparent .35deg 45deg);
+  -webkit-mask:radial-gradient(circle,transparent 4%,#000 5%,#000 68%,transparent 69%);mask:radial-gradient(circle,transparent 4%,#000 5%,#000 68%,transparent 69%)}
+body:has(#game:not([hidden])) .compass{display:none}
+section#landing,section#lobby{max-width:540px;margin:7vh auto;padding:28px 28px 22px;background:var(--paper);border:var(--rule);border-radius:3px;box-shadow:6px 6px 0 var(--ink);
+  background-image:var(--grain),linear-gradient(var(--paper-edge) 1px,transparent 1px);background-size:180px 180px,100% 28px;
+  position:relative;z-index:1}
+@media (max-width:600px){section#landing,section#lobby{margin:16px;padding:20px}}
+#landing h1{font-size:clamp(64px,13vw,104px);line-height:.85;letter-spacing:-.005em;margin-bottom:6px}
+#lobby h2{font-size:56px;line-height:.95}
+#lobby h2 span{color:var(--course);letter-spacing:.06em}
 .row{display:flex;gap:12px;align-items:end}
 .row label{flex:1}
-#lobbyMembers{list-style:none;padding:0}
-#lobbyMembers li{padding:8px 10px;margin:6px 0;border-left:6px solid;background:var(--panel);border-radius:4px}
-#game{display:grid;grid-template-columns:1fr 320px;height:100vh}
-#mapWrap{background:var(--sea);overflow:hidden;position:relative}
-#mapWrap svg{width:100%;height:100%;display:block}
-aside{background:var(--panel);border-left:1px solid var(--line);overflow:auto;padding:10px;display:flex;flex-direction:column;gap:10px}
-.player{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;border:1px solid transparent}
-.player.current{border-color:var(--accent);background:#14304a}
-.player.out{opacity:.4;text-decoration:line-through}
-.player .dot{width:12px;height:12px;border-radius:50%;flex:none}
-.player .nums{margin-left:auto;color:var(--muted);font-size:13px;white-space:nowrap}
-#phaseTitle{font-weight:700;font-size:16px}
-#phaseHelp{color:var(--muted);margin:2px 0 8px}
-#controls{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-#controls input[type=number]{width:70px}
-.card{display:flex;gap:6px;align-items:center;padding:3px 6px;border:1px solid var(--line);border-radius:4px;margin:3px 0;font-size:13px}
-.card.sel{border-color:var(--accent);background:#14304a}
-#logBox{font-size:12.5px;color:var(--muted);max-height:30vh;overflow:auto}
-#logBox div{padding:2px 0;border-bottom:1px solid var(--line)}
-#lastAttack{font-size:13px}
-.dice{display:inline-block;min-width:22px;text-align:center;margin:0 2px;padding:1px 4px;border-radius:4px;font-weight:700}
-.dice.a{background:#7a1f1f}.dice.d{background:#1f3b7a}
-#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#3a1414;border:1px solid var(--bad);padding:8px 14px;border-radius:6px;z-index:9}
-/* map */
-#mapWrap path{stroke:#0b0f14;stroke-width:1.2;transition:filter .1s;cursor:default}
-#mapWrap path.clickable{cursor:pointer}
-#mapWrap path.clickable:hover{filter:brightness(1.35)}
-#mapWrap path.dim{filter:brightness(.55)}
-#mapWrap path.sel{stroke:#fff;stroke-width:3}
-#mapWrap path.target{stroke:#ff4d4d;stroke-width:3;filter:brightness(1.2)}
-#mapWrap line{pointer-events:none;stroke:#c7d3e0;stroke-width:1.4;stroke-dasharray:5 4;opacity:.55}
-#mapWrap .army circle{fill:#0b0f14;stroke:#fff;stroke-width:1.3;opacity:.88}
-#mapWrap .army text{fill:#fff;font:700 13px system-ui,sans-serif;text-anchor:middle;dominant-baseline:central;pointer-events:none}
-#mapWrap .army{pointer-events:none}
-@media (max-width:800px){#game{grid-template-columns:1fr;grid-template-rows:55vh auto;height:auto}}
+#lobbyMembers{list-style:none;padding:0;margin:14px 0}
+#lobbyMembers li{padding:8px 12px;margin:6px 0;border:var(--rule);border-left-width:12px;background:var(--surface);border-radius:3px}
 
-#timer{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;margin:2px 0}
-#timer.low{color:var(--bad)}
-.decl{display:flex;gap:6px;align-items:center;width:100%;font-size:13px}
-.decl button{padding:2px 8px}
-#battleBox{display:flex;flex-direction:column;gap:6px}
-.battle{border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:13px}
-.battle.mine{border-color:var(--accent)}
-.battle .sd{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:2px 0}
-.battle button{padding:2px 8px;font-size:12px}
-.battle button.on{background:var(--bad);color:#fff}
-#mapWrap .arrows line{stroke-dasharray:none;opacity:.9;stroke-width:3;marker-end:none}
-#mapWrap .arrows text{font:700 12px system-ui,sans-serif;fill:#fff;paint-order:stroke;stroke:#000;stroke-width:3px;text-anchor:middle;pointer-events:none}
+/* ---------- partida ---------- */
+#game{display:grid;height:100vh;height:100dvh;grid-template-columns:1fr 264px;grid-template-rows:auto minmax(0,1fr) auto;
+  grid-template-areas:"top top" "map side" "dock dock"}
+#topbar{grid-area:top;display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:6px 16px;background:var(--ink);color:var(--paper)}
+#phaseTitle{font:800 26px/1.1 var(--display);letter-spacing:.02em}
+#timer{font:800 34px/1 var(--display);font-variant-numeric:tabular-nums}
+#timer.low{color:#ff8fb8}
+#mapWrap{grid-area:map;position:relative;overflow:hidden;min-height:0;
+  background-color:var(--sea);
+  background-image:
+    radial-gradient(ellipse at 50% 45%,transparent 45%,rgba(14,34,48,.22) 100%),
+    linear-gradient(var(--sea-line) 1.5px,transparent 1.5px),linear-gradient(90deg,var(--sea-line) 1.5px,transparent 1.5px),
+    linear-gradient(var(--sea-line) 1px,transparent 1px),linear-gradient(90deg,var(--sea-line) 1px,transparent 1px);
+  background-size:100% 100%,256px 256px,256px 256px,64px 64px,64px 64px;
+  background-position:0 0,-1px -1px,-1px -1px,-1px -1px,-1px -1px}
+#mapWrap::after{content:"";position:absolute;inset:0;pointer-events:none;background:var(--grain);mix-blend-mode:multiply;opacity:.9}
+#mapWrap #territories{filter:drop-shadow(0 3px 0 var(--land-shadow))}
+#mapWrap svg{width:100%;height:100%;display:block}
+#side{grid-area:side;background:var(--grain),var(--paper);border-left:var(--rule);overflow:auto;padding:10px;display:flex;flex-direction:column;gap:12px}
+#dock{grid-area:dock;display:flex;gap:12px;align-items:stretch;padding:10px 12px;background:var(--grain),var(--paper);border-top:var(--rule);max-height:38vh;overflow:auto}
+#orders{flex:1 1 320px;min-width:260px}
+#battleBox{flex:2 1 360px;display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start}
+#battleBox:empty,#cardsBox:empty{display:none}
+#battleBox>b{flex:0 0 100%;font:800 20px/1 var(--display)}
+#cardsBox{flex:1 1 220px;min-width:200px}
+#cardsBox>b{font:800 20px/1 var(--display)}
+
+/* jugadores */
+.player{display:flex;align-items:center;gap:8px;padding:5px 8px;border-left:5px solid transparent}
+.player.current{border-left-color:var(--course);background:var(--surface)}
+.player.out{opacity:.45;text-decoration:line-through}
+.player .dot{width:14px;height:14px;border:var(--rule);flex:none;border-radius:2px}
+.player .nums{margin-left:auto;color:var(--ink-soft);font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* órdenes */
+#phaseHelp{color:var(--ink-soft);margin:0 0 8px;max-width:62ch}
+#controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#controls input[type=number]{width:72px;margin:0}
+#readyBtn{background:var(--course);border-color:var(--ink);width:auto!important;font-size:16px;padding:10px 18px}
+.decl{display:flex;gap:8px;align-items:center;width:100%;font-size:14px;padding:3px 0;border-bottom:1px dashed var(--paper-edge)}
+.decl button{padding:1px 8px}
+
+/* cartas */
+.card{display:flex;gap:6px;align-items:center;padding:3px 8px;border:var(--rule);border-radius:3px;margin:4px 0;font-size:13px;background:var(--surface);cursor:pointer}
+.card.sel{background:var(--ink);color:var(--paper)}
+#cardsBox button{margin-top:4px}
+
+/* batallas: partes sobre papel */
+.battle{flex:1 1 230px;max-width:340px;border:var(--rule);border-radius:3px;padding:8px 10px;background:var(--surface);font-size:13px}
+.battle.mine{border-color:var(--course);box-shadow:3px 3px 0 var(--course)}
+.battle>div:first-child{font:800 17px/1.1 var(--display);margin-bottom:2px}
+.battle .sd{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:3px 0}
+.battle button{padding:1px 8px;font-size:12px;box-shadow:none}
+.battle button.on{background:var(--course);color:#fff}
+#goBtn{margin-left:8px;font-size:14px}
+
+/* dados */
+.dice{display:inline-block;min-width:22px;text-align:center;margin:0 2px;padding:0 4px;border:var(--rule);border-radius:3px;font-weight:700;font-variant-numeric:tabular-nums}
+.dice.a{background:var(--ink);color:var(--paper)}
+.dice.d{background:var(--paper);color:var(--ink)}
+
+#logBox{font-size:12.5px;color:var(--ink-soft);overflow:auto}
+#logBox div{padding:3px 0;border-bottom:1px solid var(--paper-edge)}
+#lastAttack{font-size:13px}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--paper);border:var(--rule);border-left:8px solid var(--course);padding:8px 14px;border-radius:3px;z-index:9;box-shadow:4px 4px 0 var(--ink)}
+
+/* ---------- mapa ---------- */
+#mapWrap path{stroke:var(--ink);stroke-width:1;stroke-linejoin:round;transition:filter .12s;cursor:default}
+#mapWrap path.clickable{cursor:pointer}
+#mapWrap path.clickable:hover{filter:brightness(1.12) saturate(1.1)}
+#mapWrap path.dim{opacity:.5}
+#mapWrap path.sel{stroke:var(--ink);stroke-width:3.5}
+#mapWrap path.target{stroke:var(--course);stroke-width:3.5}
+#mapWrap line{pointer-events:none;stroke:var(--ink);stroke-width:1.2;stroke-dasharray:5 4;opacity:.45}
+#mapWrap .army{pointer-events:none}
+#mapWrap .army circle{fill:var(--paper);stroke:var(--ink);stroke-width:1.5}
+#mapWrap .army text{fill:var(--ink);font:800 15px var(--display);text-anchor:middle;dominant-baseline:central;font-variant-numeric:tabular-nums}
+
+/* rumbos: la única cosa que se mueve sin que nadie haga clic */
+#mapWrap .arrows line{stroke-dasharray:none;opacity:1;fill:none}
+#mapWrap .arrows .casing{stroke:var(--ink);stroke-width:7;stroke-linecap:round}
+#mapWrap .arrows .course{stroke:var(--course);stroke-width:3.5;stroke-linecap:round}
+#mapWrap .arrows text{font:800 15px var(--display);fill:var(--ink);paint-order:stroke;stroke:var(--paper);stroke-width:4px;text-anchor:middle}
+@keyframes trace{from{stroke-dashoffset:400}to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion:no-preference){
+  #mapWrap .arrows .course.draw{stroke-dasharray:400;animation:trace .9s ease-out both}
+}
+
+/* ---------- entrada orquestada (una sola vez al mostrar cada pantalla) ---------- */
+@keyframes settle{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes drop{from{transform:translateY(-100%)}to{transform:none}}
+@keyframes unfold{from{opacity:0;transform:scale(1.04)}to{opacity:1;transform:none}}
+@keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.45)}100%{transform:scale(1)}}
+@keyframes ring{0%,100%{opacity:1}50%{opacity:.45}}
+@media (prefers-reduced-motion:no-preference){
+  #landing>*,#lobby>*{animation:settle .55s cubic-bezier(.2,.7,.2,1) both}
+  #landing>:nth-child(2),#lobby>:nth-child(2){animation-delay:.08s}
+  #landing>:nth-child(3),#lobby>:nth-child(3){animation-delay:.16s}
+  #landing>:nth-child(4),#lobby>:nth-child(4){animation-delay:.24s}
+  #landing>:nth-child(5),#lobby>:nth-child(5){animation-delay:.32s}
+  #landing>:nth-child(n+6),#lobby>:nth-child(n+6){animation-delay:.4s}
+  .compass{animation:unfold 1.4s ease-out both}
+  #game:not([hidden]) #topbar{animation:drop .45s cubic-bezier(.2,.7,.2,1) both}
+  #game:not([hidden]) #mapWrap svg{animation:unfold .8s .15s ease-out both}
+  #game:not([hidden]) #dock{animation:settle .5s .45s cubic-bezier(.2,.7,.2,1) both}
+  #game:not([hidden]) #side{animation:settle .5s .6s both}
+  .army text.bump{animation:bump .4s ease-out;transform-box:fill-box;transform-origin:center}
+  #timer.low{animation:ring 1s ease-in-out infinite}
+}
+
+/* ---------- pantallas pequeñas ---------- */
+@media (max-width:860px){
+  #game{height:auto;min-height:100dvh;grid-template-columns:1fr;grid-template-rows:auto 56vh auto auto;grid-template-areas:"top" "map" "dock" "side"}
+  #side{border-left:0;border-top:var(--rule)}
+  #dock{max-height:none;flex-direction:column}
+  #phaseTitle{font-size:20px}
+  #timer{font-size:26px}
+}

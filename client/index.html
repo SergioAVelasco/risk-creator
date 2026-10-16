@@ -4,9 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Risk Creator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Big+Shoulders+Display:wght@600;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+<div class="compass" aria-hidden="true"></div>
 <section id="landing">
   <h1>Risk Creator</h1>
   <p class="sub">Risk clásico con mapas personalizables</p>
@@ -50,20 +54,24 @@
 </section>
 
 <section id="game" hidden>
+  <header id="topbar">
+    <div id="phaseTitle"></div>
+    <div id="timer" hidden></div>
+  </header>
   <div id="mapWrap"></div>
-  <aside>
+  <aside id="side">
     <div id="players"></div>
-    <div id="phaseBox">
-      <div id="phaseTitle"></div>
-      <div id="timer" hidden></div>
+    <div id="lastAttack"></div>
+    <div id="logBox"></div>
+  </aside>
+  <footer id="dock">
+    <div id="orders">
       <div id="phaseHelp"></div>
       <div id="controls"></div>
     </div>
     <div id="battleBox"></div>
     <div id="cardsBox"></div>
-    <div id="lastAttack"></div>
-    <div id="logBox"></div>
-  </aside>
+  </footer>
 </section>
 <div id="toast" hidden></div>
 <script src="/static/app.js"></script>

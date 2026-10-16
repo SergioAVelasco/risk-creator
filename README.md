@@ -48,6 +48,29 @@ Pensadas para eliminar el tiempo muerto: nadie espera su turno. Cada ronda:
 El anfitrión elige reglas (`Clásicas por turnos` sigue disponible) y tiempo de planificación.
 Código: `risk/rounds.py`; los plazos los lleva el servidor (`server/rooms.py`).
 
+## Estilo visual (guía para cualquier cambio de UI)
+
+Dirección: **carta náutica / mesa de operaciones**. Las órdenes son rumbos trazados
+sobre una carta. Toda la identidad vive en las variables `:root` de `client/style.css`;
+no escribas colores sueltos, usa los tokens.
+
+- **Paleta:** mar `--sea` (verde agua pálido) con retícula, tinta marino `--ink`, hojas
+  de papel `--paper`, y **un solo acento**, el magenta `--course`, reservado a órdenes,
+  batallas y selección. Jugadores en gouache apagado con contorno de tinta
+  (`COLORS` en `server/rooms.py`).
+- **Tipografía:** *Big Shoulders Display* (titulares, números, temporizador) y
+  *Atkinson Hyperlegible Next* (texto). Sin mayúsculas generalizadas ni etiquetas decorativas.
+- **Forma:** paneles como hojas con borde de tinta de 1.5 px, radio de 3 px, sombras
+  duras (sin sombras suaves ni degradados decorativos); grano de papel sutil.
+- **Layout:** mapa a pantalla completa, barra superior (fase + temporizador), cajón
+  inferior (órdenes, partes de batalla, cartas), columna derecha plegada a jugadores y registro.
+- **Movimiento:** una sola entrada orquestada al mostrar cada pantalla, el trazado de
+  los rumbos al revelarse las batallas y respuestas a acciones (el contador salta al
+  cambiar). Siempre bajo `prefers-reduced-motion: no-preference`.
+- **Modo noche:** `prefers-color-scheme: dark` redefine los tokens (carta nocturna).
+- **Evitar:** fondo oscuro con acento neón, tarjetas redondeadas idénticas, crema +
+  terracota, eyebrows en mayúsculas, numeración decorativa.
+
 ## Estructura
 
 - `risk/` — motor (Python, sin dependencias)

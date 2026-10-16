@@ -12,7 +12,8 @@ from risk import Game, GameMap, RuleError
 
 ROOT = Path(__file__).resolve().parent.parent
 MAPS_DIR = ROOT / "maps"
-COLORS = ["#e6194b", "#3b6fd4", "#2fa84f", "#f2b705", "#9b59b6", "#17b6b6"]
+# gouache apagado: se lee bien sobre la carta y con contorno de tinta
+COLORS = ["#b8433b", "#3f6fa8", "#5f9a56", "#d9a62e", "#8a5fa0", "#3f9b9b"]
 MAX_PLAYERS = 6
 SETUP_BATCH_OPTIONS = (5, 10, 20, 0)  # ejércitos por ronda; 0 = todos de una vez
 DEFAULT_SETUP_BATCH = 10

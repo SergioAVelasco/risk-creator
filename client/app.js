@@ -129,7 +129,7 @@ function renderLobby() {
     ? "Se necesitan al menos 2 jugadores." : (isHost ? "Todo listo." : "Esperando al anfitrión…");
 }
 
-const NEUTRAL_COLOR = "#7a7f87";
+const NEUTRAL_COLOR = "#a9a89c";
 const colorOf = (pid) => pid === "neutral" ? NEUTRAL_COLOR : lobby.members.find(m => m.pid === pid).color;
 const nameOf = (pid) => pid === "neutral" ? "Neutral" : lobby.members.find(m => m.pid === pid).name;
 
@@ -178,27 +178,40 @@ function paintMap() {
     p.classList.toggle("dim", attackPhase() && selected && !targets.has(t) && t !== selected);
     p.classList.toggle("clickable", iAmCurrent() && clickableNow(t));
     const txt = svg.querySelector(`.army[data-t="${t}"] text`);
-    txt.textContent = game.armies[t];
+    if (txt.textContent !== String(game.armies[t])) {
+      const had = txt.textContent !== "";
+      txt.textContent = game.armies[t];
+      if (had) { txt.classList.remove("bump"); void txt.getBoundingClientRect(); txt.classList.add("bump"); }
+    }
   }
   drawArrows(svg);
 }
 
+let revealedKey = "";
 function drawArrows(svg) {
   const ns = "http://www.w3.org/2000/svg", g = svg.querySelector(".arrows");
   g.innerHTML = "";
+  if (!simPlay()) return;
+  // Las órdenes se trazan con animación solo la primera vez que se revelan.
+  const key = `${game.round}-${game.phase}`;
+  const fresh = game.phase === "battle" && key !== revealedKey;
+  if (game.phase === "battle") revealedKey = key;
+  const mk = (tag, attrs) => {
+    const e = document.createElementNS(ns, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    g.appendChild(e); return e;
+  };
   const line = (src, dst, n, color, off) => {
     const [x1, y1] = centers[src], [x2, y2] = centers[dst];
-    const l = document.createElementNS(ns, "line");
-    for (const [k, v] of Object.entries({ x1, y1, x2: x1 + (x2 - x1) * 0.9, y2: y1 + (y2 - y1) * 0.9, stroke: color })) l.setAttribute(k, v);
-    l.setAttribute("transform", `translate(${off},${off})`);
-    g.appendChild(l);
-    const t = document.createElementNS(ns, "text");
-    t.setAttribute("x", x1 + (x2 - x1) * 0.55 + off); t.setAttribute("y", y1 + (y2 - y1) * 0.55 + off);
-    t.textContent = n; g.appendChild(t);
+    const pts = { x1: x1 + off, y1: y1 + off, x2: x1 + (x2 - x1) * 0.9 + off, y2: y1 + (y2 - y1) * 0.9 + off };
+    mk("line", { ...pts, class: "casing" });
+    mk("line", { ...pts, class: "course" + (fresh ? " draw" : ""), style: `stroke:${color}` });
+    const t = mk("text", { x: x1 + (x2 - x1) * 0.55 + off, y: y1 + (y2 - y1) * 0.55 + off - 4 });
+    t.textContent = n;
   };
-  if (!simPlay()) return;
-  if (game.phase === "plan") for (const d of game.declared) line(d.from, d.to, d.n, colorOf(me), 0);
-  if (game.phase === "battle") for (const b of game.battles) b.sides.forEach((s, i) => line(s.src, s.dst, s.n, colorOf(s.owner), b.kind === "field" ? (i ? 4 : -4) : 0));
+  if (game.phase === "plan") for (const d of game.declared) line(d.from, d.to, d.n, "var(--course)", 0);
+  if (game.phase === "battle") for (const b of game.battles) b.sides.forEach((s, i) =>
+    line(s.src, s.dst, s.n, colorOf(s.owner), b.kind === "field" ? (i ? 4 : -4) : 0));
 }
 
 function tickTimer() {
