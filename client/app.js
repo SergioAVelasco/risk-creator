@@ -22,6 +22,7 @@ async function init() {
   $("createBtn").onclick = createRoom;
   $("joinBtn").onclick = () => join($("codeInput").value.trim().toUpperCase());
   $("startBtn").onclick = () => send({ type: "start" });
+  $("copyBtn").onclick = copyShareLink;
   $("batchSelect").onchange = (e) => send({ type: "settings", setup_batch: +e.target.value });
   if (location.hash.length === 5) { $("codeInput").value = location.hash.slice(1); }
 }
@@ -87,6 +88,19 @@ async function render() {
   await mapLoading;
   show("game");
   paintMap(); renderSide();
+}
+
+async function copyShareLink() {
+  const input = $("shareLink");
+  try {
+    await navigator.clipboard.writeText(input.value);
+  } catch {
+    input.select();
+    document.execCommand("copy");
+  }
+  const btn = $("copyBtn");
+  btn.textContent = "¡Copiado!";
+  setTimeout(() => { btn.textContent = "Copiar"; }, 1500);
 }
 
 function renderLobby() {
