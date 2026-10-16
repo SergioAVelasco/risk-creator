@@ -2,7 +2,7 @@
 const $ = (id) => document.getElementById(id);
 const PHASE_NAMES = {
   setup: "Preparación", reinforce: "Refuerzos", attack: "Ataque",
-  conquer_move: "Ocupar territorio", fortify: "Fortificar", finished: "Fin de la partida",
+  conquer_move: "Ocupar territorio", plan: "Planificación", battle: "Batallas", fortify: "Fortificar", finished: "Fin de la partida",
 };
 
 let ws = null, me = null, roomCode = null;
@@ -12,6 +12,9 @@ let selected = null;                       // selected source territory
 let pendingFortify = null;                 // {from,to}
 let selectedCards = new Set();
 let placeCount = 1;
+let pendingDeclare = null;                 // {from,to}: ataque que se está configurando
+let timer = null;                          // {remaining,total,at}
+let centers = {};                          // id -> [cx,cy]
 
 /* ---------- landing ---------- */
 async function init() {
@@ -24,6 +27,9 @@ async function init() {
   $("startBtn").onclick = () => send({ type: "start" });
   $("copyBtn").onclick = copyShareLink;
   $("batchSelect").onchange = (e) => send({ type: "settings", setup_batch: +e.target.value });
+  $("turnSelect").onchange = (e) => send({ type: "settings", turn_time: +e.target.value });
+  $("rulesSelect").onchange = (e) => send({ type: "settings", rules: e.target.value });
+  setInterval(tickTimer, 250);
   if (location.hash.length === 5) { $("codeInput").value = location.hash.slice(1); }
 }
 function landingError(msg) { $("landingError").textContent = msg || ""; }
@@ -61,6 +67,7 @@ function onMessage(m) {
     toast(m.message);
   } else if (m.type === "state") {
     lobby = m.lobby; game = m.game; log = m.log;
+    timer = m.timer ? { ...m.timer, at: Date.now() } : null;
     render();
   }
 }
@@ -72,8 +79,8 @@ let lastKey = "";
 async function render() {
   if (!game) return renderLobby();
   // reset transient selection whenever the turn/phase changes
-  const key = game.current + game.phase;
-  if (key !== lastKey) { selected = null; pendingFortify = null; lastKey = key; }
+  const key = game.current + game.phase + (game.round || "");
+  if (key !== lastKey) { selected = null; pendingFortify = null; pendingDeclare = null; lastKey = key; }
   if (mapId !== lobby.map) {
     mapId = lobby.map;
     mapLoading = Promise.all([
@@ -113,6 +120,10 @@ function renderLobby() {
   $("startBtn").hidden = !isHost;
   $("batchSelect").disabled = !isHost;
   $("batchSelect").value = String(lobby.setup_batch);
+  $("turnSelect").disabled = $("rulesSelect").disabled = !isHost;
+  $("turnSelect").value = String(lobby.turn_time);
+  $("rulesSelect").value = lobby.rules;
+  $("turnRow").hidden = lobby.rules !== "simultaneous";
   $("startBtn").disabled = lobby.members.length < 2;
   $("lobbyHint").textContent = lobby.members.length < 2
     ? "Se necesitan al menos 2 jugadores." : (isHost ? "Todo listo." : "Esperando al anfitrión…");
@@ -125,8 +136,10 @@ const nameOf = (pid) => pid === "neutral" ? "Neutral" : lobby.members.find(m => 
 function buildMap() {
   const svg = $("mapWrap").querySelector("svg");
   const ns = "http://www.w3.org/2000/svg";
+  const ar = document.createElementNS(ns, "g"); ar.setAttribute("class", "arrows"); svg.appendChild(ar);
   const g = document.createElementNS(ns, "g"); g.setAttribute("class", "armies"); svg.appendChild(g);
   for (const p of svg.querySelectorAll("#territories path")) {
+    centers[p.id] = [+p.dataset.cx, +p.dataset.cy];
     const a = document.createElementNS(ns, "g"); a.setAttribute("class", "army"); a.dataset.t = p.id;
     a.innerHTML = `<circle cx="${p.dataset.cx}" cy="${p.dataset.cy}" r="12"/><text x="${p.dataset.cx}" y="${p.dataset.cy}"></text>`;
     g.appendChild(a);
@@ -138,13 +151,19 @@ function buildMap() {
 function neighbors(t) { return mapData.json.territories[t].neighbors; }
 // En la preparación simultánea no hay turnos: puedes actuar hasta confirmar la ronda.
 const setupSim = () => game.phase === "setup" && game.setup_simultaneous;
+const simPlay = () => game.simultaneous_play;
 const iAmCurrent = () => setupSim()
   ? !game.setup_ready[me]
-  : game.current === me && game.phase !== "finished";
+  : simPlay()
+    ? (game.phase === "plan" || game.phase === "fortify") && !game.ready[me] && !game.eliminated.includes(me)
+    : game.current === me && game.phase !== "finished";
+// ejércitos de `t` que aún no están comprometidos en un ataque declarado
+const freeArmies = (t) => game.armies[t] - 1 - game.declared.filter(d => d.from === t).reduce((s, d) => s + d.n, 0);
+const attackPhase = () => game.phase === "attack" || (simPlay() && game.phase === "plan" && game.reinforcements === 0);
 
 function legalTargets() {
   if (!selected) return [];
-  if (game.phase === "attack") return neighbors(selected).filter(n => game.owner[n] !== me);
+  if (attackPhase()) return neighbors(selected).filter(n => game.owner[n] !== me);
   return [];
 }
 
@@ -156,16 +175,49 @@ function paintMap() {
     p.style.fill = colorOf(game.owner[t]);
     p.classList.toggle("sel", t === selected || (pendingFortify && t === pendingFortify.to));
     p.classList.toggle("target", targets.has(t));
-    p.classList.toggle("dim", game.phase === "attack" && selected && !targets.has(t) && t !== selected);
+    p.classList.toggle("dim", attackPhase() && selected && !targets.has(t) && t !== selected);
     p.classList.toggle("clickable", iAmCurrent() && clickableNow(t));
     const txt = svg.querySelector(`.army[data-t="${t}"] text`);
     txt.textContent = game.armies[t];
   }
+  drawArrows(svg);
+}
+
+function drawArrows(svg) {
+  const ns = "http://www.w3.org/2000/svg", g = svg.querySelector(".arrows");
+  g.innerHTML = "";
+  const line = (src, dst, n, color, off) => {
+    const [x1, y1] = centers[src], [x2, y2] = centers[dst];
+    const l = document.createElementNS(ns, "line");
+    for (const [k, v] of Object.entries({ x1, y1, x2: x1 + (x2 - x1) * 0.9, y2: y1 + (y2 - y1) * 0.9, stroke: color })) l.setAttribute(k, v);
+    l.setAttribute("transform", `translate(${off},${off})`);
+    g.appendChild(l);
+    const t = document.createElementNS(ns, "text");
+    t.setAttribute("x", x1 + (x2 - x1) * 0.55 + off); t.setAttribute("y", y1 + (y2 - y1) * 0.55 + off);
+    t.textContent = n; g.appendChild(t);
+  };
+  if (!simPlay()) return;
+  if (game.phase === "plan") for (const d of game.declared) line(d.from, d.to, d.n, colorOf(me), 0);
+  if (game.phase === "battle") for (const b of game.battles) b.sides.forEach((s, i) => line(s.src, s.dst, s.n, colorOf(s.owner), b.kind === "field" ? (i ? 4 : -4) : 0));
+}
+
+function tickTimer() {
+  const el = $("timer");
+  if (!game || !timer || !simPlay() || game.phase === "finished") { el.hidden = true; return; }
+  const left = Math.max(0, Math.ceil(timer.remaining - (Date.now() - timer.at) / 1000));
+  el.hidden = false;
+  el.classList.toggle("low", left <= 10);
+  el.textContent = game.phase === "battle" ? `Próxima tirada en ${left}s`
+    : `⏱ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
 }
 
 function clickableNow(t) {
   const own = game.owner[t] === me, ph = game.phase;
   if (ph === "setup" || ph === "reinforce") return own;
+  if (ph === "plan" && game.reinforcements === 0) {
+    return selected ? (own || legalTargets().includes(t)) : own && freeArmies(t) > 0;
+  }
+  if (ph === "plan") return own;
   if (ph === "attack") {
     if (game.reinforcements > 0) return own;
     return selected ? (own || legalTargets().includes(t)) : own && game.armies[t] > 1;
@@ -178,10 +230,14 @@ function onTerritoryClick(t) {
   if (!iAmCurrent()) return;
   const own = game.owner[t] === me, ph = game.phase;
   if (ph === "setup") return own && send({ type: "place", territory: t });
-  if (ph === "reinforce" || (ph === "attack" && game.reinforcements > 0)) {
+  if (ph === "reinforce" || ((ph === "attack" || ph === "plan") && game.reinforcements > 0)) {
     return own && send({ type: "place", territory: t, count: Math.min(placeCount, game.reinforcements) });
   }
-  if (ph === "attack") {
+  if (ph === "plan") {
+    if (own) { selected = (selected === t || freeArmies(t) < 1) ? null : t; pendingDeclare = null; }
+    else if (selected && legalTargets().includes(t)) { pendingDeclare = { from: selected, to: t }; }
+    renderSide(); paintMap();
+  } else if (ph === "attack") {
     if (own) { selected = (selected === t || game.armies[t] < 2) ? null : t; }
     else if (selected && legalTargets().includes(t)) { showAttackControls(selected, t); return; }
     renderSide(); paintMap();
@@ -211,9 +267,13 @@ function renderSide() {
   $("players").innerHTML = game.players.concat(game.neutral ? [game.neutral] : []).map(p => {
     const terr = Object.values(game.owner).filter(o => o === p).length;
     const arm = Object.entries(game.owner).filter(([, o]) => o === p).reduce((s, [t]) => s + game.armies[t], 0);
-    const isCur = setupSim() ? game.setup_ready[p] === false : p === game.current && game.phase !== "finished";
+    const simWait = simPlay() && (game.phase === "plan" || game.phase === "fortify") && p !== game.neutral
+      && !game.eliminated.includes(p);
+    const isCur = setupSim() ? game.setup_ready[p] === false
+      : simPlay() ? (simWait && !game.ready[p]) : p === game.current && game.phase !== "finished";
     const cls = ["player", isCur ? "current" : "", game.eliminated.includes(p) ? "out" : ""].join(" ");
-    const ready = setupSim() && p !== game.neutral ? (game.setup_ready[p] ? " ✔ listo" : " …colocando") : "";
+    const ready = setupSim() && p !== game.neutral ? (game.setup_ready[p] ? " ✔ listo" : " …colocando")
+      : simWait ? (game.ready[p] ? " ✔ listo" : " …") : "";
     return `<div class="${cls}"><span class="dot" style="background:${colorOf(p)}"></span>${esc(nameOf(p))}${p === me ? " (tú)" : ""}${ready}
       <span class="nums">${terr}T · ${arm}⚔${p in game.card_counts ? ` · ${game.card_counts[p]}🂠` : ""}</span></div>`;
   }).join("");
@@ -221,6 +281,7 @@ function renderSide() {
   // phase
   const mine = iAmCurrent();
   const who = setupSim() ? `Ronda ${game.setup_round}`
+    : simPlay() ? `Ronda ${game.round}`
     : mine ? "Tu turno" : `Turno de ${esc(nameOf(game.current))}`;
   $("phaseTitle").textContent = game.phase === "finished"
     ? `🏆 Ganó ${nameOf(game.winner)}` : `${who} — ${PHASE_NAMES[game.phase]}`;
@@ -236,6 +297,11 @@ function renderSide() {
     } else {
       help = "Ya colocaste esta ronda. Esperando a que los demás terminen…";
     }
+  } else if (simPlay() && ph === "plan") {
+    renderPlan(c);
+    help = $("phaseHelp").dataset.next;
+  } else if (simPlay() && ph === "battle") {
+    help = "Todas las batallas se tiran a la vez. Antes de cada tirada puedes retirarte de las tuyas.";
   } else if (ph === "setup") {
     help = mine
       ? `Coloca ejércitos: ${game.setup_turn_left} en este turno (te quedan ${game.setup_left[me]} en total).`
@@ -271,10 +337,12 @@ function renderSide() {
     } else {
       help = selected ? `Origen: ${selected}. Elige el destino (conectado por tus territorios).` : "Elige un territorio de origen, o termina el turno.";
       c.innerHTML = `<button id="endT" class="ghost">Terminar turno sin mover</button>`;
-      $("endT").onclick = () => { selected = pendingFortify = null; send({ type: "end_turn" }); };
+      $("endT").onclick = () => { selected = pendingFortify = null; send({ type: simPlay() ? "ready" : "end_turn" }); };
     }
   }
+  if (simPlay() && (ph === "fortify") && !mine && !game.eliminated.includes(me)) help = "Listo. Esperando a los demás…";
   $("phaseHelp").textContent = help;
+  renderBattles();
 
   // cards
   const box = $("cardsBox");
@@ -301,9 +369,95 @@ function renderSide() {
   // log
   $("logBox").innerHTML = [...log].reverse().slice(0, 25).map(e => {
     if (e.event === "attack") return `<div>⚔ ${esc(nameOf(e.attacker))}: ${e.from}→${e.to} (${e.attacker_lost}/${e.defender_lost})${e.conquered ? " conquista" : ""}${e.eliminated ? ` — elimina a ${esc(nameOf(e.eliminated))}` : ""}</div>`;
+    if (e.event === "conquest") return `<div>🏴 ${esc(nameOf(e.player))} conquista ${e.to}</div>`;
+    if (e.event === "retreat") return `<div>↩ ${esc(nameOf(e.player))} se retira a ${e.to}</div>`;
+    if (e.event === "eliminated") return `<div>☠ ${esc(nameOf(e.player))} eliminado</div>`;
+    if (e.event === "battle") return `<div>⚔ Batalla ${e.kind === "field" ? "de campo" : "por ciudad"}: ${e.sides.map(x => `${esc(nameOf(x.owner))} ${x.src}→${x.dst} (${x.n})`).join(" ⇄ ")}</div>`;
     if (e.event === "trade") return `<div>🂠 ${esc(nameOf(e.player))} canjea por ${e.armies}</div>`;
     return "";
   }).join("");
+}
+
+/* ---------- rondas simultáneas ---------- */
+function renderPlan(c) {
+  const help = $("phaseHelp");
+  if (game.eliminated.includes(me)) { help.dataset.next = "Estás eliminado."; return; }
+  if (game.ready[me]) {
+    help.dataset.next = "Listo. Esperando a los demás (o a que se acabe el tiempo)…";
+    c.innerHTML = `<button id="unready" class="ghost">Cancelar listo</button>`;
+    $("unready").onclick = () => send({ type: "ready", value: false });
+    return;
+  }
+  const rows = game.declared.map(d => `<div class="decl">${d.from} → ${d.to} ×${d.n}
+    <button class="ghost" data-f="${d.from}" data-t="${d.to}">✕</button></div>`).join("");
+  let form = "";
+  if (pendingDeclare) {
+    const { from, to } = pendingDeclare;
+    const cur = game.declared.find(d => d.from === from && d.to === to);
+    const max = freeArmies(from) + (cur ? cur.n : 0);
+    form = `<div class="decl" style="flex-wrap:wrap">${from} → ${to}
+      <input type="number" id="dn" min="1" max="${max}" value="${cur ? cur.n : max}">
+      <button id="dOk">Declarar ataque</button><button class="ghost" id="dNo">Cancelar</button></div>`;
+  }
+  if (game.reinforcements > 0) {
+    placeCount = Math.max(1, Math.min(placeCount, game.reinforcements));
+    help.dataset.next = `Refuerzos por colocar: ${game.reinforcements}. Haz clic en un territorio tuyo.` +
+      (game.cards.length >= 5 ? " Debes canjear cartas antes de colocar." : "");
+    c.innerHTML = `<label>Cantidad <input type="number" id="pc" min="1" max="${game.reinforcements}" value="${placeCount}"></label>
+      <button class="ghost" id="pAll">Todos</button>`;
+    $("pc").oninput = (e) => { placeCount = Math.max(1, +e.target.value || 1); };
+    $("pAll").onclick = () => { placeCount = game.reinforcements; $("pc").value = placeCount; };
+  } else {
+    help.dataset.next = selected
+      ? `Origen: ${selected}. Elige un territorio enemigo adyacente (rojo). Los ataques son secretos hasta la batalla.`
+      : "Elige un territorio tuyo para declarar un ataque (los ataques son secretos hasta que todos estén listos).";
+    c.innerHTML = rows + form;
+  }
+  c.insertAdjacentHTML("beforeend", `<button id="readyBtn" style="width:100%">✔ Terminar turno</button>`);
+  $("readyBtn").onclick = () => { selected = pendingDeclare = null; send({ type: "ready" }); };
+  c.querySelectorAll("[data-f]").forEach(b => b.onclick = () =>
+    send({ type: "undeclare", from: b.dataset.f, to: b.dataset.t }));
+  if (pendingDeclare && $("dOk")) {
+    $("dOk").onclick = () => {
+      send({ type: "declare", from: pendingDeclare.from, to: pendingDeclare.to, n: +$("dn").value });
+      pendingDeclare = selected = null;
+    };
+    $("dNo").onclick = () => { pendingDeclare = null; renderSide(); paintMap(); };
+  }
+}
+
+function diceHtml(res) {
+  if (!res || !res.rolls.length) return res && res.retreat.length === 2 ? "ambos se retiran" : "";
+  const [a, b] = res.rolls;
+  return `${a.map(d => `<span class="dice a">${d}</span>`).join("")} vs ${b.map(d => `<span class="dice d">${d}</span>`).join("")}
+    — bajas ${res.lost[0]} / ${res.lost[1]}`;
+}
+
+function renderBattles() {
+  const box = $("battleBox");
+  if (!simPlay() || game.phase !== "battle") {
+    // el resultado de la última tirada se queda visible hasta la siguiente ronda
+    box.innerHTML = "";
+    return;
+  }
+  const inBattle = game.battles.some(b => b.sides.some(s => s.owner === me));
+  const goBtn = inBattle ? `<button id="goBtn" ${game.battle_go.includes(me) ? "disabled" : ""}>Continuar ▶</button>` : "";
+  box.innerHTML = `<b>Batallas</b> ${goBtn}` + game.battles.map(b => {
+    const res = game.last_tick.find(r => r.id === b.id);
+    const mineB = b.sides.some(s => s.owner === me);
+    const sides = b.sides.map(s => {
+      const btn = s.owner === me && s.can_retreat
+        ? `<button class="ghost ${s.retreating ? "on" : ""}" data-b="${b.id}" data-on="${s.retreating ? 0 : 1}">${s.retreating ? "↩ Retirándose" : "Retirarse"}</button>`
+        : (s.owner === me ? `<i>(sin retirada)</i>` : "");
+      return `<div class="sd"><span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${colorOf(s.owner)}"></span>
+        ${esc(nameOf(s.owner))} ${s.src}→${s.dst} <b>×${s.n}</b> ${btn}</div>`;
+    }).join("");
+    return `<div class="battle ${mineB ? "mine" : ""}"><div>${b.kind === "field" ? "⚔ Campo abierto" : "🏰 Ciudad"} #${b.id}</div>${sides}
+      <div>${diceHtml(res)}</div></div>`;
+  }).join("");
+  box.querySelectorAll("[data-b]").forEach(btn => btn.onclick = () =>
+    send({ type: "retreat", battle: +btn.dataset.b, value: btn.dataset.on === "1" }));
+  if ($("goBtn")) $("goBtn").onclick = () => send({ type: "continue" });
 }
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }

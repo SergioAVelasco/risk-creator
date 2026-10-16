@@ -4,7 +4,10 @@ Run: python3 -m uvicorn server.app:app --reload
 """
 from __future__ import annotations
 
+import asyncio
 import json
+import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -17,9 +20,28 @@ from risk import RuleError
 from .rooms import MAPS_DIR, Rooms, list_maps
 
 ROOT = Path(__file__).resolve().parent.parent
-app = FastAPI(title="Risk Creator")
 rooms = Rooms()
 sockets: dict[str, dict[str, WebSocket]] = {}  # room code -> pid -> ws
+
+
+@asynccontextmanager
+async def lifespan(_app):
+    async def timers():
+        # Los plazos viven en el servidor: si alguien no actúa, la fase avanza.
+        while True:
+            await asyncio.sleep(0.5)
+            for code, room in list(rooms.rooms.items()):
+                try:
+                    if room.poll(time.time()):
+                        await broadcast(code)
+                except Exception:
+                    pass
+    task = asyncio.create_task(timers())
+    yield
+    task.cancel()
+
+
+app = FastAPI(title="Risk Creator", lifespan=lifespan)
 
 
 class CreateRoom(BaseModel):
@@ -81,7 +103,7 @@ async def ws_endpoint(ws: WebSocket, code: str, name: str = "", token: str = "")
                 if msg.get("type") == "start":
                     room.start(member.pid)
                 elif msg.get("type") == "settings":
-                    room.set_setup_batch(member.pid, int(msg.get("setup_batch")))
+                    room.set_option(member.pid, msg)
                 else:
                     room.act(member.pid, msg)
             except (RuleError, KeyError, ValueError, TypeError) as e:

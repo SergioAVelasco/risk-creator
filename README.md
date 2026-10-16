@@ -20,10 +20,38 @@ colocan los demás hasta que termina la fase; al colocar tu cuota quedas en espe
 siguiente ronda se abre cuando todos terminaron. En red local, usa la
 IP de la máquina en vez de `localhost`.
 
+## Reglas de rondas simultáneas (por defecto)
+
+Pensadas para eliminar el tiempo muerto: nadie espera su turno. Cada ronda:
+
+1. **Planificación** (temporizador + botón *Terminar turno*): todos colocan refuerzos y
+   declaran ataques en secreto (`origen → destino × n`; los `n` ejércitos salen del
+   territorio, siempre queda 1 en casa; los refuerzos deben estar colocados antes de
+   declarar). Si se acaba el tiempo, el jugador queda listo tal cual (lo no colocado
+   se acumula).
+2. **Batallas**: se revelan y se tiran todas a la vez, tirada a tirada (cada 5 s o
+   cuando todos los implicados pulsan *Continuar*). Antes de cada tirada puedes
+   *retirarte* de cualquiera de tus batallas.
+   - **Campo abierto**: si A ataca a B y B ataca a A, ambos tiran como atacantes y el
+     empate cuesta una baja a cada uno. El ganador sigue después contra el territorio
+     del perdedor (**ciudad**, reglas normales: el defensor gana los empates).
+   - **Retirada**: cuesta un último tiro en el que quien se retira no elimina nada pero
+     sí puede perder unidades; si ambos se retiran no hay tiro. Los supervivientes
+     vuelven a su origen; si el origen fue tomado, no hay retirada.
+   - Un territorio atacado por varios frentes reparte su guarnición entre ellos
+     (dados = su parte, mín. 1, máx. 2). Si cae, lo ocupa el atacante que conserve más
+     ejércitos; los demás siguen la batalla contra él (o se unen, si son del mismo dueño).
+3. **Cartas**: al terminar *todas* las batallas se reparten las cartas de conquista
+   (una por jugador que conquistó) y las de los eliminados pasan a quien los eliminó.
+4. **Fortificar**: un movimiento por jugador, simultáneo y con temporizador.
+
+El anfitrión elige reglas (`Clásicas por turnos` sigue disponible) y tiempo de planificación.
+Código: `risk/rounds.py`; los plazos los lleva el servidor (`server/rooms.py`).
+
 ## Estructura
 
 - `risk/` — motor (Python, sin dependencias)
-  - `gamemap.py` carga y valida mapas · `game.py` reglas · `cards.py` cartas
+  - `gamemap.py` carga y valida mapas · `game.py` reglas clásicas · `rounds.py` rondas simultáneas · `cards.py` cartas
 - `server/` — FastAPI: salas (`rooms.py`) y WebSocket (`app.py`)
 - `client/` — interfaz web (HTML/JS sin build)
 - `tools/build_classic_svg.py` — genera `maps/classic/map.svg` desde `world.svg`

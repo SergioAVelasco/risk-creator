@@ -33,6 +33,18 @@
       <option value="0">Todos de una vez</option>
     </select>
   </label>
+  <label>Reglas
+    <select id="rulesSelect">
+      <option value="simultaneous">Rondas simultáneas (todos juegan a la vez)</option>
+      <option value="classic">Clásicas por turnos</option>
+    </select>
+  </label>
+  <label id="turnRow">Tiempo de planificación por ronda
+    <select id="turnSelect">
+      <option value="60">1 minuto</option><option value="120">2 minutos</option>
+      <option value="180">3 minutos</option><option value="0">Sin límite</option>
+    </select>
+  </label>
   <button id="startBtn" hidden>Empezar partida</button>
   <p id="lobbyHint" class="sub"></p>
 </section>
@@ -43,9 +55,11 @@
     <div id="players"></div>
     <div id="phaseBox">
       <div id="phaseTitle"></div>
+      <div id="timer" hidden></div>
       <div id="phaseHelp"></div>
       <div id="controls"></div>
     </div>
+    <div id="battleBox"></div>
     <div id="cardsBox"></div>
     <div id="lastAttack"></div>
     <div id="logBox"></div>

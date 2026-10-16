@@ -49,3 +49,16 @@ aside{background:var(--panel);border-left:1px solid var(--line);overflow:auto;pa
 #mapWrap .army text{fill:#fff;font:700 13px system-ui,sans-serif;text-anchor:middle;dominant-baseline:central;pointer-events:none}
 #mapWrap .army{pointer-events:none}
 @media (max-width:800px){#game{grid-template-columns:1fr;grid-template-rows:55vh auto;height:auto}}
+
+#timer{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;margin:2px 0}
+#timer.low{color:var(--bad)}
+.decl{display:flex;gap:6px;align-items:center;width:100%;font-size:13px}
+.decl button{padding:2px 8px}
+#battleBox{display:flex;flex-direction:column;gap:6px}
+.battle{border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:13px}
+.battle.mine{border-color:var(--accent)}
+.battle .sd{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:2px 0}
+.battle button{padding:2px 8px;font-size:12px}
+.battle button.on{background:var(--bad);color:#fff}
+#mapWrap .arrows line{stroke-dasharray:none;opacity:.9;stroke-width:3;marker-end:none}
+#mapWrap .arrows text{font:700 12px system-ui,sans-serif;fill:#fff;paint-order:stroke;stroke:#000;stroke-width:3px;text-anchor:middle;pointer-events:none}

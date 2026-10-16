@@ -11,15 +11,17 @@ from collections import deque
 from .cards import Card, build_deck, is_valid_set, set_value
 from .errors import RuleError
 from .gamemap import GameMap
+from .rounds import RoundsMixin
 
 STARTING_ARMIES = {2: 40, 3: 35, 4: 30, 5: 25, 6: 20}
 NEUTRAL = "neutral"  # id del ejército fantasma de las partidas de 2 jugadores
 MUST_TRADE_AT = 5  # holding this many cards forces a trade at reinforcement
 
 
-class Game:
+class Game(RoundsMixin):
     def __init__(self, gamemap: GameMap, players: list[str], rng: random.Random | None = None,
-                 setup_batch: int = 1, simultaneous_setup: bool = False):
+                 setup_batch: int = 1, simultaneous_setup: bool = False,
+                 simultaneous_play: bool = False):
         if not 2 <= len(players) <= 6:
             raise RuleError("Risk needs 2 to 6 players")
         if len(set(players)) != len(players):
@@ -28,6 +30,8 @@ class Game:
             raise RuleError("map has fewer territories than players")
         if setup_batch < 0:
             raise RuleError("setup_batch cannot be negative")
+        if simultaneous_play and not simultaneous_setup:
+            raise RuleError("simultaneous play needs the simultaneous setup")
         # Ejércitos que cada jugador coloca seguidos en su turno de preparación
         # (1 = reglas clásicas). 0 significa "todos de una vez".
         self.setup_batch = setup_batch or 10**9
@@ -65,6 +69,9 @@ class Game:
         self.conquered_this_turn = False
         self.pending_conquest: dict | None = None  # {"from","to","min","max"}
         self.log: list[dict] = []
+        # Rondas simultáneas (planificar -> batallas -> fortificar); ver rounds.py
+        self.simultaneous_play = simultaneous_play
+        self._init_rounds()
 
         self._deal()
 
@@ -132,6 +139,9 @@ class Game:
         self.phase = "reinforce"
         self.current = self.players[0]
         self.log.append({"event": "setup_done"})
+        if self.simultaneous_play:
+            self._begin_round()
+            return
         self._start_turn()
 
     def _require_setup_open(self, player: str) -> None:
@@ -212,6 +222,8 @@ class Game:
     # ------------------------------------------------------------ placing armies
     def place(self, player: str, territory: str, count: int = 1) -> None:
         """Place armies: initial setup (one at a time) or reinforcement."""
+        if self.phase == "plan":
+            return self._plan_place(player, territory, count)
         if self.phase == "setup" and self.simultaneous_setup:
             # Simultánea: no hay turno. Lo colocado queda pendiente (y privado)
             # hasta que todos confirmen la ronda.
@@ -254,10 +266,20 @@ class Game:
 
     def trade_cards(self, player: str, indices: list[int]) -> int:
         """Trade three cards (by index into the hand) for armies; returns armies gained."""
+        if self.phase == "plan":
+            self._require_plan(player)
+            gained = self._do_trade(player, indices)
+            self.reinf[player] += gained
+            return gained
         self._require_turn(player, "reinforce", "attack")
-        hand = self.cards[player]
-        if self.phase == "attack" and len(hand) <= MUST_TRADE_AT:
+        if self.phase == "attack" and len(self.cards[player]) <= MUST_TRADE_AT:
             raise RuleError("cards can only be traded now when holding more than 5")
+        gained = self._do_trade(player, indices)
+        self.reinforcements += gained
+        return gained
+
+    def _do_trade(self, player: str, indices: list[int]) -> int:
+        hand = self.cards[player]
         if len(set(indices)) != 3 or any(not 0 <= i < len(hand) for i in indices):
             raise RuleError("choose three different cards from your hand")
         chosen = [hand[i] for i in indices]
@@ -272,8 +294,9 @@ class Game:
         for c in chosen:
             if c.territory and self.owner[c.territory] == player:
                 self.armies[c.territory] += 2
+                if self.phase == "plan":
+                    self._hide_added(player, c.territory, 2)
                 break
-        self.reinforcements += gained
         self.log.append({"event": "trade", "player": player, "armies": gained})
         return gained
 
@@ -387,6 +410,8 @@ class Game:
         origen: basta con que exista un camino de territorios propios que los
         una (ver _connected). Solo se permite un movimiento por turno.
         """
+        if self.simultaneous_play:
+            return self._round_fortify(player, source, target, count)
         self._require_turn(player, "fortify")
         self._require_own(player, source)
         self._require_own(player, target)
@@ -456,6 +481,8 @@ class Game:
         """Snapshot for clients. Other players' cards are reduced to a count."""
         hide = self.phase == "setup" and self.simultaneous_setup
         armies = self.armies
+        if self.phase == "plan":
+            armies = self._plan_armies_for(viewer)
         if hide:
             # Cada uno ve el reparto inicial y SU propia colocación; lo que
             # colocan los demás (confirmado o no) queda oculto hasta el final.
@@ -492,4 +519,5 @@ class Game:
             ],
             "sets_traded": self.sets_traded,
             "next_set_value": set_value(self.sets_traded),
+            **self._rounds_dict(viewer),
         }

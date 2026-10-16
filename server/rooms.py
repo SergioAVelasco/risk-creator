@@ -4,6 +4,7 @@ from __future__ import annotations
 import random
 import secrets
 import string
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -15,6 +16,10 @@ COLORS = ["#e6194b", "#3b6fd4", "#2fa84f", "#f2b705", "#9b59b6", "#17b6b6"]
 MAX_PLAYERS = 6
 SETUP_BATCH_OPTIONS = (5, 10, 20, 0)  # ejércitos por ronda; 0 = todos de una vez
 DEFAULT_SETUP_BATCH = 10
+TURN_TIME_OPTIONS = (0, 60, 120, 180)  # segundos de planificación; 0 = sin límite
+DEFAULT_TURN_TIME = 120
+BATTLE_TICK_SECONDS = 5  # ventana para decidir retiradas entre tiradas
+RULES = ("simultaneous", "classic")
 
 
 def list_maps() -> list[dict]:
@@ -48,6 +53,11 @@ class Room:
     host: str | None = None
     game: Game | None = None
     setup_batch: int = DEFAULT_SETUP_BATCH
+    turn_time: int = DEFAULT_TURN_TIME
+    rules: str = "simultaneous"
+    deadline: float | None = None
+    _timer_key: tuple | None = None
+    _timer_total: float = 0
 
     # -- membership
     def join(self, name: str, token: str | None) -> Member:
@@ -91,6 +101,56 @@ class Room:
             raise RuleError("invalid setup batch")
         self.setup_batch = value
 
+    def set_option(self, pid: str, msg: dict) -> None:
+        if pid != self.host:
+            raise RuleError("only the host can change the settings")
+        if self.game is not None:
+            raise RuleError("the game already started")
+        if "setup_batch" in msg:
+            self.set_setup_batch(pid, int(msg["setup_batch"]))
+        if "turn_time" in msg:
+            if int(msg["turn_time"]) not in TURN_TIME_OPTIONS:
+                raise RuleError("invalid turn time")
+            self.turn_time = int(msg["turn_time"])
+        if "rules" in msg:
+            if msg["rules"] not in RULES:
+                raise RuleError("invalid rules")
+            self.rules = msg["rules"]
+
+    # -- temporizador (el motor no conoce el tiempo)
+    def _phase_seconds(self) -> float:
+        g = self.game
+        if g is None or not g.simultaneous_play:
+            return 0
+        if g.phase == "plan":
+            return self.turn_time
+        if g.phase == "fortify":
+            return max(15, self.turn_time // 3) if self.turn_time else 0
+        if g.phase == "battle":
+            return BATTLE_TICK_SECONDS
+        return 0
+
+    def sync_timer(self, now: float) -> None:
+        """Reinicia el plazo cuando cambia la fase, la ronda o el tick."""
+        g = self.game
+        if g is None or not g.simultaneous_play:
+            self.deadline = None
+            return
+        key = (g.phase, g.round, g.serial)
+        if key != self._timer_key:
+            self._timer_key = key
+            self._timer_total = self._phase_seconds()
+            self.deadline = now + self._timer_total if self._timer_total else None
+
+    def poll(self, now: float) -> bool:
+        """Llamado periódicamente por el servidor; True si el estado cambió."""
+        self.sync_timer(now)
+        if self.deadline is not None and now >= self.deadline:
+            self.game.force_advance()
+            self.sync_timer(now)
+            return True
+        return False
+
     def start(self, pid: str) -> None:
         if pid != self.host:
             raise RuleError("only the host can start the game")
@@ -100,7 +160,8 @@ class Room:
             raise RuleError("you need at least 2 players")
         gm = GameMap.load(MAPS_DIR / self.map_id / "map.json")
         self.game = Game(gm, list(self.members), setup_batch=self.setup_batch,
-                         simultaneous_setup=True)
+                         simultaneous_setup=True,
+                         simultaneous_play=self.rules == "simultaneous")
 
     # -- actions
     def act(self, pid: str, msg: dict) -> None:
@@ -127,6 +188,16 @@ class Room:
             g.fortify(pid, msg["from"], msg["to"], i("count"))
         elif t == "end_turn":
             g.end_turn(pid)
+        elif t == "declare":
+            g.declare_attack(pid, msg["from"], msg["to"], i("n"))
+        elif t == "undeclare":
+            g.cancel_attack(pid, msg["from"], msg["to"])
+        elif t == "ready":
+            g.set_ready(pid, bool(msg.get("value", True)))
+        elif t == "retreat":
+            g.set_retreat(pid, i("battle"), bool(msg.get("value", True)))
+        elif t == "continue":
+            g.battle_continue(pid)
         else:
             raise RuleError(f"unknown action {t!r}")
 
@@ -144,12 +215,18 @@ class Room:
             "code": self.code, "map": self.map_id, "host": self.host,
             "started": self.game is not None,
             "setup_batch": self.setup_batch,
+            "turn_time": self.turn_time, "rules": self.rules,
             "members": [{"pid": m.pid, "name": m.name, "color": m.color, "connected": m.connected}
                         for m in self.members.values()],
         }
 
     def view_for(self, pid: str) -> dict:
         v = {"lobby": self.lobby_view(), "you": pid, "game": None, "log": []}
+        now = time.time()
+        self.sync_timer(now)
+        v["timer"] = None
+        if self.deadline is not None:
+            v["timer"] = {"remaining": max(0.0, self.deadline - now), "total": self._timer_total}
         if self.game:
             v["game"] = self.game.to_dict(viewer=pid)
             v["log"] = self.game.log[-40:]
